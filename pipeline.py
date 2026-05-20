@@ -9,9 +9,12 @@ Renaissance paintings and portraits of the writer, with a translucent
 with xfade transitions and Ken Burns zoom — no CapCut step required.
 
 Env vars:
-  USE_BEAT_SYNC  '1' (default) for beat-synced reels, '0' for the old uniform-cut path.
-  BEAT_TRANSITION  ffmpeg xfade name (default 'fadeblack'). 'auto' rotates through punchy ones.
-  KEN_BURNS  '1' (default) enables zoom-pan per slide, '0' to disable.
+  STYLE           'capcut' (default, 7s fast-cut beat-synced) or 'kinetic'
+                  (28s @wisdomofhidgon-style letterbox + red word-by-word reveal).
+  USE_BEAT_SYNC   '1' (default) for beat-synced reels under STYLE=capcut,
+                  '0' for the old uniform-cut path. Ignored under STYLE=kinetic.
+  BEAT_TRANSITION ffmpeg xfade name (default 'fadeblack'). 'auto' rotates through punchy ones.
+  KEN_BURNS       '1' (default) enables zoom-pan per slide, '0' to disable.
 """
 import hashlib
 import logging
@@ -38,6 +41,7 @@ from fetcher import (
 from composer import (
     compose_image, compose_reel, compose_frame,
     compose_slideshow, compose_slideshow_beat_synced,
+    compose_kinetic_letterbox,
 )
 from scheduler import schedule_uploads
 from uploader import upload_reel
@@ -78,7 +82,10 @@ MIN_CUTS = int(os.getenv("MIN_CUTS", "16"))
 # Color grade applied uniformly across every clip so disparate paintings
 # read as one cohesive reel: vintage | sepia | noir | cool | warm | off.
 COLOR_GRADE = os.getenv("COLOR_GRADE", "vintage").strip()
-REEL_DURATION = 7.0
+# STYLE = "capcut" (fast-cut 7s, default) or "kinetic" (letterbox + word-by-word
+# red typography, 28s, modeled on @wisdomofhidgon DIA_e3dI9tq).
+STYLE = os.getenv("STYLE", "capcut").strip().lower()
+REEL_DURATION = 28.0 if STYLE == "kinetic" else 7.0
 
 # Hooks rotate by post_count so the same opening line never repeats per
 # philosopher, which avoids the IG "duplicate caption" downranking.
@@ -159,10 +166,11 @@ def main(upload_now=True, single=False, generate_only=False):
 
     log.info("Run ID: %s", RUN_ID)
     log.info(
-        "Mode: %s | grade=%s | min_cuts=%d | gothic_font=%s",
-        "beat-synced" if USE_BEAT_SYNC else "uniform-cut",
-        COLOR_GRADE if USE_BEAT_SYNC else "n/a",
-        MIN_CUTS if USE_BEAT_SYNC else 0,
+        "Style: %s | duration=%.1fs | grade=%s | min_cuts=%d | gothic_font=%s",
+        STYLE,
+        REEL_DURATION,
+        COLOR_GRADE if USE_BEAT_SYNC and STYLE != "kinetic" else "n/a",
+        MIN_CUTS if USE_BEAT_SYNC and STYLE != "kinetic" else 0,
         GOTHIC_FONT_PATH.exists(),
     )
     log.info("Processing %d philosophers...", len(philosophers))
@@ -235,12 +243,18 @@ def main(upload_now=True, single=False, generate_only=False):
         cover_jpg = str(OUTPUT_DIR / (slug + "-" + RUN_ID + ".jpg"))
 
         log.info(
-            "  Composing %.0fs %s slideshow...",
+            "  Composing %.0fs %s reel...",
             REEL_DURATION,
-            "beat-synced" if USE_BEAT_SYNC else "fast-cut",
+            STYLE if STYLE == "kinetic" else ("beat-synced" if USE_BEAT_SYNC else "fast-cut"),
         )
         try:
-            if USE_BEAT_SYNC:
+            if STYLE == "kinetic":
+                compose_kinetic_letterbox(
+                    frames, quote, philosopher,
+                    audio_path, mp4_path, str(FONT_PATH),
+                    reel_duration=REEL_DURATION,
+                )
+            elif USE_BEAT_SYNC:
                 compose_slideshow_beat_synced(
                     frames, quote, philosopher,
                     audio_path, mp4_path, str(FONT_PATH),

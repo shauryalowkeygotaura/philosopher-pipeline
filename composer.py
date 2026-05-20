@@ -785,3 +785,377 @@ def compose_slideshow_beat_synced(
 # Back-compat aliases so older callers (and earlier function names) still work.
 detect_beats = detect_hits
 _segments_from_beats = _segments_from_hits
+
+
+# ─── Kinetic letterbox reel (@wisdomofhidgon-style) ──────────────────────────
+# Slow cinematic band of image (~28% of frame height), pure black above/below,
+# word-by-word red serif text reveal timed to beat/onset hits. One mid-reel
+# splash card with a red banner + philosopher name. 28s long-form bait, ~3-4
+# image cuts vs the 36-cut CapCut mode.
+
+KINETIC_REEL_DURATION = 28.0
+KINETIC_BAND_HEIGHT = 540   # 28% of 1920, centered vertically (y=690..1230)
+KINETIC_RED = (200, 0, 24)  # #C80018, the @wisdomofhidgon crimson
+KINETIC_SPLASH_RED = (193, 12, 28)
+KINETIC_CREAM = (235, 222, 200)
+
+
+def _split_quote_to_phrases(quote, n_target=14):
+    """Split quote into ~n_target word chunks (1-3 words each), preferring
+    natural breaks at commas / dashes / semicolons.
+    """
+    raw = quote.replace("—", ",").replace("–", ",").replace(";", ",")
+    pieces = [p.strip() for p in raw.split(",") if p.strip()]
+
+    chunks = []
+    for piece in pieces:
+        words = piece.split()
+        if not words:
+            continue
+        if len(words) <= 3:
+            chunks.append(" ".join(words))
+            continue
+        # pack into groups of 2 (with occasional 3) to hit n_target
+        i = 0
+        while i < len(words):
+            take = 2 if (i + 2 <= len(words)) else (len(words) - i)
+            chunks.append(" ".join(words[i:i + take]))
+            i += take
+
+    # Coerce toward n_target by merging shortest neighbors if too many
+    while len(chunks) > n_target and len(chunks) > 1:
+        idx = min(range(len(chunks) - 1), key=lambda k: len(chunks[k]) + len(chunks[k + 1]))
+        chunks[idx] = chunks[idx] + " " + chunks[idx + 1]
+        del chunks[idx + 1]
+
+    return chunks
+
+
+def _phrase_style(idx, total):
+    """Deterministic style permutation per phrase index. Returns one of:
+    'plain' | 'bracket' | 'underline' | 'caps'. Last phrase always 'caps' for
+    the climax beat (mirrors the reference reel's UPPERCASE finale).
+    """
+    if idx == total - 1:
+        return "caps"
+    if idx == 0:
+        return "plain"
+    return ("plain", "bracket", "underline", "caps")[idx % 4]
+
+
+def _render_kinetic_phrase_png(text, style, output_path, font_path, color=KINETIC_RED):
+    """Render one phrase as a 1080x1920 transparent PNG with red serif text.
+    Position: vertically centered in the TOP black bar above the letterbox band.
+    """
+    img = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    display = text
+    if style == "bracket":
+        display = "[" + text + "]"
+    elif style == "caps":
+        display = text.upper()
+
+    # Auto-fit a single line into the top black bar (y=0..690).
+    max_px_width = int(REEL_WIDTH * 0.84)
+    max_px_height = int((REEL_HEIGHT - KINETIC_BAND_HEIGHT) / 2 * 0.55)
+    size = 110 if style == "caps" else 96
+    while size > 36:
+        font = _load_font(font_path, size)
+        bbox = draw.textbbox((0, 0), display, font=font)
+        if (bbox[2] - bbox[0]) <= max_px_width and (bbox[3] - bbox[1]) <= max_px_height:
+            break
+        size -= 4
+    else:
+        font = _load_font(font_path, 36)
+
+    bbox = draw.textbbox((0, 0), display, font=font)
+    tw = bbox[2] - bbox[0]
+    th = bbox[3] - bbox[1]
+    # Anchor in the upper-third of the frame, above the letterbox band
+    band_top = (REEL_HEIGHT - KINETIC_BAND_HEIGHT) // 2
+    cy = band_top // 2
+    cx = REEL_WIDTH // 2
+
+    draw.text((cx, cy), display, font=font, fill=color + (255,), anchor="mm")
+
+    if style == "underline":
+        underline_y = cy + th // 2 + 14
+        thickness = max(3, int(size * 0.06))
+        draw.line(
+            (cx - tw // 2, underline_y, cx + tw // 2, underline_y),
+            fill=color + (255,), width=thickness,
+        )
+
+    img.save(output_path, "PNG")
+
+
+def _render_kinetic_splash_card(philosopher, output_path, font_path, handle="@deepahhthinking"):
+    """Mid-reel splash card: full red band with bordered serif name + tiny handle.
+    Mirrors the @wisdomofhidgon t=8s frame.
+    """
+    img = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 255))
+    draw = ImageDraw.Draw(img)
+
+    band_top = (REEL_HEIGHT - KINETIC_BAND_HEIGHT) // 2
+    band_bot = band_top + KINETIC_BAND_HEIGHT
+    draw.rectangle((0, band_top, REEL_WIDTH, band_bot), fill=KINETIC_SPLASH_RED + (255,))
+
+    # Fit philosopher name into ~80% of band width
+    name_text = philosopher.upper()
+    max_w = int(REEL_WIDTH * 0.80)
+    max_h = int(KINETIC_BAND_HEIGHT * 0.50)
+    size = 180
+    while size > 48:
+        f = _load_font(font_path, size)
+        b = draw.textbbox((0, 0), name_text, font=f)
+        if (b[2] - b[0]) <= max_w and (b[3] - b[1]) <= max_h:
+            break
+        size -= 6
+    else:
+        f = _load_font(font_path, 48)
+
+    cx = REEL_WIDTH // 2
+    cy = band_top + KINETIC_BAND_HEIGHT // 2 - 30
+    # Hollow border effect: draw text 4 times slightly offset in cream, then white center
+    for dx, dy in ((-3, 0), (3, 0), (0, -3), (0, 3)):
+        draw.text((cx + dx, cy + dy), name_text, font=f, fill=KINETIC_CREAM + (255,), anchor="mm")
+    draw.text((cx, cy), name_text, font=f, fill=(255, 255, 255, 255), anchor="mm")
+
+    # Handle, small italic-feel beneath
+    handle_size = max(28, size // 6)
+    hf = _load_font(font_path, handle_size)
+    hcy = cy + (max_h // 2) + handle_size
+    draw.text((cx, hcy), handle, font=hf, fill=KINETIC_CREAM + (200,), anchor="mm")
+
+    img.save(output_path, "PNG")
+
+
+def _kinetic_image_filter(idx, length_sec):
+    """Per-image filter chain for the letterbox base.
+
+    Scales/crops the source to a 1080-wide x 540-tall horizontal band, applies
+    a slow Ken Burns zoom using crop's continuous `t` variable, then pads to
+    full 1080x1920 with black above and below the band.
+
+    Why not zoompan: zoompan's `d` is frames per INPUT image. With our
+    `-loop 1 -t SEG -framerate 30` inputs producing SEG*30 input frames AND
+    `d=SEG*30`, zoompan emits SEG*30 frames per input frame -> (SEG*30)^2
+    total output, blowing past the concat budget and starving every segment
+    after the first. The animated-crop pattern below sidesteps that entirely.
+    """
+    # Slow continuous zoom 1.00 -> ~1.08 across the segment, driven by
+    # crop's per-frame `t` variable (seconds since input start).
+    zoom = "(1+0.04*min(t/%.4f,1))" % max(0.1, length_sec)
+    crop_w = "2160/%s" % zoom
+    crop_h = "1080/%s" % zoom
+    crop_x = "(2160-2160/%s)/2" % zoom
+    crop_y = "(1080-1080/%s)/2" % zoom
+    chain = [
+        "scale=2160:1080:force_original_aspect_ratio=increase",
+        "crop=2160:1080",
+        "crop=w='%s':h='%s':x='%s':y='%s'" % (crop_w, crop_h, crop_x, crop_y),
+        "scale=1080:540",
+        "eq=saturation=0.92:contrast=1.05",
+        "pad=1080:1920:0:690:color=black",
+        "setsar=1",
+        "format=yuv420p",
+    ]
+    return "[" + str(idx) + ":v]" + ",".join(chain) + "[v" + str(idx) + "]"
+
+
+def compose_kinetic_letterbox(
+    image_paths,
+    quote,
+    philosopher,
+    audio_path,
+    output_path,
+    font_path,
+    reel_duration=KINETIC_REEL_DURATION,
+    splash_at_fraction=0.27,
+    splash_duration=2.6,
+):
+    """@wisdomofhidgon-style reel: letterbox band image + word-by-word red
+    kinetic typography + mid-reel splash card.
+
+    Pacing: text reveals on beat/onset hits (reuses detect_hits). 4 image
+    clips around the splash card, each lingering ~5-7s with a slow 1.00 -> 1.08
+    zoom. Pure black 9:16 canvas, image squeezed into a 540-tall horizontal
+    band centered vertically.
+    """
+    if not image_paths:
+        raise ValueError("compose_kinetic_letterbox requires at least one image")
+
+    hits, tempo = detect_hits(audio_path, max_duration=reel_duration)
+
+    phrases = _split_quote_to_phrases(quote, n_target=14)
+
+    # Image segment plan: 4 image clips around a centered splash card.
+    splash_t = reel_duration * splash_at_fraction
+    pre_pool = max(1, min(2, len(image_paths) // 2))
+    post_pool = 3
+    pre_dur = splash_t / pre_pool
+    post_total = reel_duration - splash_t - splash_duration
+    post_dur = post_total / post_pool
+
+    # Pick images, no back-to-back repeats across the small set
+    chosen = []
+    pool = list(image_paths)
+    last = None
+    for _ in range(pre_pool + post_pool):
+        if not pool:
+            pool = list(image_paths)
+        pick = pool.pop(0)
+        if pick == last and pool:
+            alt = pool.pop(0)
+            pool.append(pick)
+            pick = alt
+        chosen.append(pick)
+        last = pick
+
+    log.info(
+        "kinetic letterbox: tempo=%.0f BPM, %d hits, %d phrases, %d image segs (pre=%.1fs each, splash=%.1fs, post=%.1fs each)",
+        tempo, len(hits), len(phrases), len(chosen), pre_dur, splash_duration, post_dur,
+    )
+
+    workdir = Path(tempfile.mkdtemp(prefix="kinetic-"))
+    try:
+        # 1. Render splash card PNG (used as one of the image inputs)
+        splash_png = workdir / "splash.png"
+        _render_kinetic_splash_card(philosopher, str(splash_png), font_path)
+
+        # 2. Render one PNG per phrase
+        phrase_pngs = []
+        for i, phrase in enumerate(phrases):
+            png = workdir / ("phrase_%02d.png" % i)
+            style = _phrase_style(i, len(phrases))
+            _render_kinetic_phrase_png(phrase, style, str(png), font_path)
+            phrase_pngs.append(png)
+
+        # 3. Assemble ffmpeg invocation.
+        # Inputs: chosen[0..pre_pool-1] as image segments at pre_dur each,
+        #         splash.png as one segment at splash_duration,
+        #         chosen[pre_pool..] as post-splash segments at post_dur each,
+        #         then all phrase PNGs (still images, not concatted),
+        #         then audio.
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-stats"]
+        segments = []
+        for i in range(pre_pool):
+            cmd += ["-loop", "1", "-framerate", "30", "-t", "%.4f" % pre_dur, "-i", str(chosen[i])]
+            segments.append(("img", pre_dur))
+        cmd += ["-loop", "1", "-framerate", "30", "-t", "%.4f" % splash_duration, "-i", str(splash_png)]
+        segments.append(("splash", splash_duration))
+        for i in range(pre_pool, pre_pool + post_pool):
+            cmd += ["-loop", "1", "-framerate", "30", "-t", "%.4f" % post_dur, "-i", str(chosen[i])]
+            segments.append(("img", post_dur))
+
+        n_video_inputs = len(segments)
+        for png in phrase_pngs:
+            cmd += ["-loop", "1", "-i", str(png)]
+        phrase_input_offset = n_video_inputs
+        cmd += ["-i", str(audio_path)]
+        audio_idx = n_video_inputs + len(phrase_pngs)
+
+        parts = []
+        # Per-segment filter: letterbox-zoom for image segments, passthrough for splash
+        for i, (kind, dur) in enumerate(segments):
+            if kind == "splash":
+                parts.append(
+                    "[" + str(i) + ":v]scale=1080:1920,setsar=1,format=yuv420p[v" + str(i) + "]"
+                )
+            else:
+                parts.append(_kinetic_image_filter(i, dur))
+
+        chain_inputs = "".join("[v%d]" % i for i in range(n_video_inputs))
+        parts.append(chain_inputs + "concat=n=" + str(n_video_inputs) + ":v=1:a=0[vcat]")
+
+        # Phrase overlay timing: spread phrases EVENLY across the timeline,
+        # snap each anchor to the nearest detected hit within +/- 0.4s, then
+        # hold each phrase from its anchor until the next phrase's anchor.
+        # The naive hits[0..N-1] approach clumped every phrase in the first
+        # 3s because dense onset detection front-loaded the hit list.
+        phrase_times = []
+        n_phrases = len(phrase_pngs)
+        # Skip the splash window when laying down anchors
+        usable_span = reel_duration - splash_duration
+        anchor_step = usable_span / max(1, n_phrases)
+        anchors = []
+        for i in range(n_phrases):
+            t = i * anchor_step + anchor_step / 2
+            if t >= splash_t:
+                t += splash_duration
+            anchors.append(t)
+
+        # Snap each anchor to nearest hit within tolerance
+        snap_tol = 0.4
+        snapped = []
+        for a in anchors:
+            best = a
+            if hits:
+                nearest = min(hits, key=lambda h: abs(h - a))
+                if abs(nearest - a) <= snap_tol:
+                    best = nearest
+            # Don't let snapping land inside the splash window
+            if splash_t - 0.05 < best < splash_t + splash_duration + 0.05:
+                best = a
+            snapped.append(best)
+        snapped.sort()
+
+        for i, start in enumerate(snapped):
+            if i + 1 < len(snapped):
+                end = snapped[i + 1]
+            else:
+                end = reel_duration
+            # Clamp around the splash window
+            if start < splash_t + splash_duration and end > splash_t:
+                if start < splash_t:
+                    end = min(end, splash_t)
+                elif end > splash_t + splash_duration:
+                    start = max(start, splash_t + splash_duration)
+                else:
+                    continue
+            if end - start < 0.20:
+                continue
+            phrase_times.append((i, start, end))
+
+        # Chain text overlays on top of the concatted letterbox base
+        current = "[vcat]"
+        for n, (i, start, end) in enumerate(phrase_times):
+            out_label = "[vt%d]" % n if n < len(phrase_times) - 1 else "[vout]"
+            inp = "[" + str(phrase_input_offset + i) + ":v]"
+            parts.append(
+                current + inp +
+                "overlay=0:0:enable='between(t," + ("%.3f" % start) + "," + ("%.3f" % end) + ")'" +
+                out_label
+            )
+            current = out_label
+
+        if not phrase_times:
+            parts.append("[vcat]null[vout]")
+
+        cmd += [
+            "-filter_complex", ";".join(parts),
+            "-map", "[vout]",
+            "-map", "%d:a" % audio_idx,
+            "-c:v", "libx264", "-crf", "22", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
+            "-r", "30",
+            "-t", "%.4f" % reel_duration,
+            "-shortest",
+            str(output_path),
+        ]
+
+        log.info("kinetic filter_complex (%d parts): %s", len(parts), " || ".join(parts))
+        log.info("kinetic phrase_times: %s", phrase_times)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            tail = (result.stderr or "")[-700:]
+            raise RuntimeError("ffmpeg kinetic letterbox failed: " + tail)
+    finally:
+        try:
+            for f in workdir.iterdir():
+                f.unlink()
+            workdir.rmdir()
+        except Exception:
+            pass
