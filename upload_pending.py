@@ -51,7 +51,7 @@ def main():
 
         try:
             artifacts_json = _gh("api",
-                f"repos/they-call-me-god/philosopher-pipeline/actions/runs/{run_id}/artifacts")
+                f"repos/shauryalowkeygotaura/philosopher-pipeline/actions/runs/{run_id}/artifacts")
             artifacts = json.loads(artifacts_json).get("artifacts", [])
         except subprocess.CalledProcessError:
             continue
@@ -115,7 +115,7 @@ def main():
                 # Delete artifact to avoid re-uploading
                 subprocess.run(
                     ["gh", "api", "--method=DELETE",
-                     f"repos/they-call-me-god/philosopher-pipeline/actions/artifacts/{artifact_id}"],
+                     f"repos/shauryalowkeygotaura/philosopher-pipeline/actions/artifacts/{artifact_id}"],
                     capture_output=True, cwd=str(_DIR)
                 )
                 print("  Artifact deleted.")

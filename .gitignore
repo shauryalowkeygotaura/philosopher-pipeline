@@ -15,3 +15,5 @@ output/
 cache/
 logs/
 .pytest_cache/
+# Local-only voice-profiling reference assets (10+ MB, dev tooling only)
+reference/

@@ -1159,3 +1159,478 @@ def compose_kinetic_letterbox(
             workdir.rmdir()
         except Exception:
             pass
+
+
+# ─── Kinetic v2: 5-beat reel matching @wisdomofhidgon's actual format ────────
+# Reference: reference/wisdomofhidgon-DIA_e3dI9tq.mp4
+# Spec: Projects/philosopher-pipeline/kinetic-format-spec.md
+
+V2_BRAND_BAND_TOP = 400
+V2_BRAND_BAND_HEIGHT = 320
+V2_BODY_BAND_TOP = 690
+V2_BODY_BAND_HEIGHT = 540
+
+
+def _render_v2_hook_word(word, output_path, font_path, is_last=False):
+    """Beat 1: small red italic serif word on pure black + thin red underline.
+    `is_last` wraps in [brackets] to mark the key word."""
+    img = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 255))
+    draw = ImageDraw.Draw(img)
+    display = "[" + word + "]" if is_last else word
+    font = _load_font(font_path, 96)
+    bbox = draw.textbbox((0, 0), display, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    cx = REEL_WIDTH // 2
+    cy = int(REEL_HEIGHT * 0.56)
+    draw.text((cx, cy), display, font=font, fill=KINETIC_RED + (255,), anchor="mm")
+    if not is_last:
+        underline_y = cy + th // 2 + 14
+        draw.line(
+            (cx - tw // 2 - 4, underline_y, cx + tw // 2 + 4, underline_y),
+            fill=KINETIC_RED + (255,), width=4,
+        )
+    img.save(output_path, "PNG")
+
+
+def _render_v2_black(output_path):
+    Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0)).save(output_path, "PNG")
+
+
+def _render_v2_brand_card(philosopher, portrait_path, output_path, font_path,
+                          subtitle="Wisdom of hidgon"):
+    """Beat 3: red band with philosopher name + portrait cut INSIDE band on right."""
+    img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    band_top = V2_BRAND_BAND_TOP
+    band_h = V2_BRAND_BAND_HEIGHT
+    band_bot = band_top + band_h
+    draw.rectangle((0, band_top, REEL_WIDTH, band_bot), fill=KINETIC_SPLASH_RED)
+
+    portrait_w = 0
+    if portrait_path and Path(portrait_path).exists():
+        try:
+            p = Image.open(portrait_path).convert("RGB")
+            target_h = band_h + 80
+            target_w = target_h
+            pw, ph = p.size
+            scale = max(target_w / pw, target_h / ph)
+            p_resized = p.resize((int(pw * scale), int(ph * scale)), Image.LANCZOS)
+            left = (p_resized.width - target_w) // 2
+            # Upper-third bias for portrait sources (faces sit in upper third).
+            # Pure center crop on a tall standing-figure photo cuts the face off.
+            excess_v = p_resized.height - target_h
+            top = int(excess_v * 0.22) if ph > pw else excess_v // 2
+            p_cropped = p_resized.crop((left, top, left + target_w, top + target_h))
+            paste_x = REEL_WIDTH - target_w + 30
+            paste_y = band_top - 40
+            img.paste(p_cropped, (paste_x, paste_y))
+            portrait_w = target_w
+        except Exception as e:
+            log.warning("Brand card portrait paste failed: %s", e)
+
+    parts = philosopher.upper().strip().split()
+    line1 = parts[0] if parts else ""
+    line2 = " ".join(parts[1:]) if len(parts) >= 2 else ""
+
+    avail_w = REEL_WIDTH - portrait_w - 80
+    title_size = 130
+    while title_size > 40:
+        title_f = _load_font(font_path, title_size)
+        b1 = draw.textbbox((0, 0), line1, font=title_f)
+        b2 = draw.textbbox((0, 0), line2, font=title_f) if line2 else (0, 0, 0, 0)
+        if (b1[2] - b1[0]) <= avail_w and (b2[2] - b2[0]) <= avail_w:
+            break
+        title_size -= 6
+    else:
+        title_f = _load_font(font_path, 40)
+
+    lx = 50
+    ly1 = band_top + 30
+    draw.text((lx, ly1), line1, font=title_f, fill=(245, 235, 215), anchor="lt")
+    if line2:
+        ly2 = ly1 + title_size + 4
+        draw.text((lx, ly2), line2, font=title_f, fill=(0, 0, 0), anchor="lt")
+
+    sub_f = _load_font(font_path, 30)
+    sub_y = band_bot - 28
+    draw.text((lx, sub_y), subtitle, font=sub_f, fill=(245, 235, 215), anchor="lb")
+
+    img.save(output_path, "PNG")
+
+
+def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=False):
+    """Beat 4: letterbox image band + small red italic text below."""
+    img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
+    band_top = V2_BODY_BAND_TOP
+    band_h = V2_BODY_BAND_HEIGHT
+
+    if image_path and Path(image_path).exists():
+        try:
+            p = Image.open(image_path).convert("RGB")
+            pw, ph = p.size
+            scale = max(REEL_WIDTH / pw, band_h / ph)
+            p_resized = p.resize((int(pw * scale), int(ph * scale)), Image.LANCZOS)
+            left = (p_resized.width - REEL_WIDTH) // 2
+            # Portraits: bias crop toward upper portion so faces stay in frame.
+            # Landscape paintings: center crop keeps the composition.
+            excess_v = p_resized.height - band_h
+            top = int(excess_v * 0.22) if ph > pw else excess_v // 2
+            p_cropped = p_resized.crop((left, top, left + REEL_WIDTH, top + band_h))
+            img.paste(p_cropped, (0, band_top))
+        except Exception as e:
+            log.warning("Body band image failed: %s", e)
+
+    overlay = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    display = "[" + text + "]" if is_bracket else text
+    font = _load_font(font_path, 76)
+    cx = REEL_WIDTH // 2
+    cy = band_top + band_h + 90
+    draw.text((cx, cy), display, font=font, fill=KINETIC_RED + (255,), anchor="mm")
+
+    final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    final.save(output_path, "PNG")
+
+
+def _render_v2_slogan_card(slogan_text, image_path, output_path, font_path):
+    """Beat 5: BIG mixed-size red overlay on full-frame darkened image."""
+    img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
+    if image_path and Path(image_path).exists():
+        try:
+            from PIL import ImageEnhance
+            bg = Image.open(image_path).convert("RGB")
+            bw, bh = bg.size
+            scale = max(REEL_WIDTH / bw, REEL_HEIGHT / bh)
+            bg = bg.resize((int(bw * scale), int(bh * scale)), Image.LANCZOS)
+            left = (bg.width - REEL_WIDTH) // 2
+            top = (bg.height - REEL_HEIGHT) // 2
+            bg = bg.crop((left, top, left + REEL_WIDTH, top + REEL_HEIGHT))
+            bg = ImageEnhance.Brightness(bg).enhance(0.45)
+            img = bg
+        except Exception as e:
+            log.warning("Slogan card bg failed: %s", e)
+
+    overlay = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    lines = _v2_split_slogan(slogan_text)
+    base_sizes = [120, 160, 140, 130]
+    max_w = int(REEL_WIDTH * 0.90)
+
+    # Auto-fit each line: shrink until it fits 90% of frame width.
+    # Without this, longer lines like "SOLITUDE MUST" clip off the right edge.
+    fitted = []
+    for i, line in enumerate(lines):
+        size = base_sizes[i % len(base_sizes)]
+        upper = line.upper()
+        while size > 56:
+            f = _load_font(font_path, size)
+            b = draw.textbbox((0, 0), upper, font=f)
+            if (b[2] - b[0]) <= max_w:
+                break
+            size -= 6
+        else:
+            f = _load_font(font_path, 56)
+        fitted.append((upper, f, size))
+
+    total_h = sum(s + 12 for _, _, s in fitted)
+    y = (REEL_HEIGHT - total_h) // 2
+    cx = REEL_WIDTH // 2
+    for upper, f, size in fitted:
+        draw.text((cx, y), upper, font=f, fill=KINETIC_RED + (255,), anchor="mt")
+        y += size + 12
+
+    final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+    final.save(output_path, "PNG")
+
+
+_V2_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "to", "for", "with", "by",
+    "is", "are", "was", "were", "be", "been", "being",
+    "and", "or", "but", "so", "yet", "as", "if", "than", "that", "this",
+    "i", "me", "my", "we", "us", "our", "you", "your", "he", "his", "she",
+    "her", "it", "its", "they", "them", "their",
+}
+
+
+def _v2_pick_content_word(words, fallback="wisdom"):
+    """Pick the first content word from a list of (word, start, end) tuples,
+    skipping stopwords. Falls back to the longest word if all are stopwords,
+    or the provided fallback if the list is empty."""
+    if not words:
+        return fallback
+    for w, _, _ in words:
+        if w.lower() not in _V2_STOPWORDS and len(w) >= 3:
+            return w
+    longest = max(words, key=lambda t: len(t[0]))
+    return longest[0]
+
+
+def _v2_split_slogan(slogan):
+    words = slogan.replace(".", "").replace(",", "").strip().split()
+    if not words:
+        return []
+    n = len(words)
+    if n <= 3:
+        return [" ".join(words)]
+    target = 4 if n >= 9 else 3
+    per = n // target
+    extra = n % target
+    out = []
+    i = 0
+    for L in range(target):
+        take = per + (1 if L < extra else 0)
+        out.append(" ".join(words[i:i + take]))
+        i += take
+    return out
+
+
+def compose_kinetic_v2(
+    image_paths,
+    quote,
+    philosopher,
+    output_path,
+    font_path,
+    slogan=None,
+    voice="daniel",
+    music_path=None,
+    music_volume=0.30,
+    slogan_hold=3.5,
+    brand_subtitle="",
+):
+    """V2 kinetic reel: TTS-driven 5-beat structure matching @wisdomofhidgon.
+
+    Parameters
+    ----------
+    music_path: optional path to background music file. Mixed UNDER the voice
+        at `music_volume` (default 0.18 ≈ -15 dB) so the narration stays
+        forward and the music is atmospheric.
+    slogan_hold: seconds to hold the closing slogan card on screen AFTER the
+        voice ends. Without this the final card flashes by in <2s and viewers
+        miss the punchline.
+    """
+    from tts import synthesize_quote
+
+    if not image_paths:
+        raise ValueError("compose_kinetic_v2 requires at least one image")
+    if slogan is None:
+        slogan = "A seeker of truth must find their own light"
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    log.info("Synthesizing narration (voice=%s)...", voice)
+    tts = synthesize_quote(
+        quote, out_dir=Path("cache/tts"), voice=voice,
+        slogan=slogan, inject_breaks=True,
+    )
+    log.info("TTS: %.2fs duration, %d word timings", tts.duration_sec, len(tts.word_timings))
+
+    quote_n = len([w for w in quote.split() if w.strip(".,;:!?")])
+    quote_words = tts.word_timings[:quote_n]
+    slogan_words = tts.word_timings[quote_n:]
+
+    # Hold the closing slogan for slogan_hold seconds after voice ends so the
+    # punchline registers. Without this, slogan flashes in <2s.
+    total = tts.duration_sec + slogan_hold
+
+    n_hook = min(4, len(quote_words))
+    hook_times = [(qw[0], qw[1], qw[2]) for qw in quote_words[:n_hook]]
+    hook_end = hook_times[-1][2] + 0.3 if hook_times else 1.5
+    # Choose which hook word gets the [brackets] marker. We want it on a
+    # content word, not a stopword like "of" or "the". Prefer the last content
+    # word in the hook range; fall back to the actual last word if all are
+    # stopwords.
+    bracket_idx = n_hook - 1
+    for i in range(n_hook - 1, -1, -1):
+        w = hook_times[i][0].lower()
+        if w not in _V2_STOPWORDS and len(w) >= 4:
+            bracket_idx = i
+            break
+
+    if n_hook < len(quote_words):
+        breath_end = quote_words[n_hook][1]
+    else:
+        breath_end = hook_end + 0.5
+    breath_end = max(breath_end, hook_end + 0.3)
+
+    # Brand card holds for a tight 1.6s — long enough to register the name,
+    # short enough that the voice/visual gap doesn't feel like a stall. The
+    # user feedback "image popped up for a long time" tracked to a 2.5s brand
+    # card; pulling it down to 1.6s frees runway for the body phrase reveals.
+    brand_end = breath_end + 1.6
+
+    # Body ends when the SLOGAN voice section starts so the slogan card is
+    # on screen the entire time voice reads the slogan (was: slogan_words[-3],
+    # which left the visual climax mistimed and felt out-of-sync).
+    if slogan_words:
+        body_end = slogan_words[0][1] - 0.1
+    else:
+        body_end = total - 2.0
+    body_end = max(body_end, brand_end + 1.5)
+    body_end = min(body_end, total - 1.5)
+
+    log.info(
+        "Beats: hook 0-%.2fs | breath %.2f-%.2fs | brand %.2f-%.2fs | body %.2f-%.2fs | slogan %.2f-%.2fs",
+        hook_end, hook_end, breath_end, breath_end, brand_end, brand_end, body_end, body_end, total,
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpd = Path(tmp)
+        beat_inputs = []
+
+        # Hook: group into 2-word phrases (matches reference reel's
+        # "I would" / "life of" pattern). 4 single-word cuts at ~0.7s each
+        # read as choppy; 2 phrase cuts at ~1.5s breathe.
+        hook_phrases = []
+        for i in range(0, n_hook, 2):
+            group = hook_times[i:i + 2]
+            text = " ".join(w for w, _, _ in group)
+            hook_phrases.append((text, group[0][1], group[-1][2], group))
+
+        # Bracket the last hook phrase since it leads into the brand card.
+        # If any phrase contains the picked content word (bracket_idx), prefer
+        # that one so the bracket lands on the meaning, not just the timing.
+        bracket_phrase_idx = len(hook_phrases) - 1
+        for pi, (_, _, _, group) in enumerate(hook_phrases):
+            start_word_idx = pi * 2
+            if start_word_idx <= bracket_idx < start_word_idx + len(group):
+                bracket_phrase_idx = pi
+                break
+
+        for pi, (text, ws, we, _) in enumerate(hook_phrases):
+            png = tmpd / ("hook_p_%d.png" % pi)
+            is_last = (pi == bracket_phrase_idx)
+            _render_v2_hook_word(text, str(png), font_path, is_last=is_last)
+            if pi + 1 < len(hook_phrases):
+                dur = hook_phrases[pi + 1][1] - ws
+            else:
+                dur = hook_end - ws
+            beat_inputs.append((png, max(0.4, dur)))
+
+        breath_png = tmpd / "breath.png"
+        _render_v2_black(str(breath_png))
+        beat_inputs.append((breath_png, max(0.2, breath_end - hook_end)))
+
+        brand_png = tmpd / "brand.png"
+        _render_v2_brand_card(philosopher, image_paths[0], str(brand_png), font_path, subtitle=brand_subtitle)
+        beat_inputs.append((brand_png, max(0.5, brand_end - breath_end)))
+
+        # Beat 4: PHRASE reveals (not per-word). User feedback: "word by word
+        # cuts feels cut off" — 7-15 PNG cuts at 0.5-0.7s each reads as
+        # choppy. Group consecutive TTS words into 2-3 word phrases and hold
+        # each for ~1.2-1.8s. This matches the reference reel's "here to" /
+        # "warrior" pattern of 2-word labels at painting-cut cadence.
+        body_pool = image_paths[1:] if len(image_paths) > 1 else image_paths
+        body_pool = body_pool[:3] if len(body_pool) >= 3 else body_pool
+
+        body_window_words = [
+            (w, s, e) for (w, s, e) in tts.word_timings
+            if brand_end <= s < body_end
+        ]
+
+        # Group into phrases. Target ~1.5s per phrase, BUT enforce minimum 2
+        # words per phrase. Without the floor, `len // target_phrases` rounds
+        # to 1 for short body windows (e.g. 5 words / 4 phrases = 1) which
+        # reproduces the choppy word-by-word feel we were trying to fix.
+        body_duration = max(0.5, body_end - brand_end)
+        target_phrases = max(2, int(round(body_duration / 1.5)))
+        phrases = []  # (text, start, end)
+        if body_window_words:
+            per = max(2, (len(body_window_words) + target_phrases - 1) // target_phrases)
+            i = 0
+            while i < len(body_window_words):
+                group = body_window_words[i:i + per]
+                # Show the phrase as spoken (no stopword stripping inside).
+                # Reference reel uses "here to" / "warrior" — natural prose,
+                # not filtered content words. Previous aggressive filter
+                # stripped "me" from "within me" and produced single-word
+                # labels that read as choppy cuts.
+                text = " ".join(w for w, _, _ in group)
+                phrases.append((text, group[0][1], group[-1][2]))
+                i += per
+
+        if phrases:
+            for bi, (text, ws, we) in enumerate(phrases):
+                png = tmpd / ("body_p_%d.png" % bi)
+                img_idx = (bi * len(body_pool)) // max(1, len(phrases))
+                body_image = body_pool[min(img_idx, len(body_pool) - 1)]
+                is_last = (bi == len(phrases) - 1)
+                _render_v2_body_frame(body_image, text, str(png), font_path, is_bracket=is_last)
+                if bi + 1 < len(phrases):
+                    dur = phrases[bi + 1][1] - ws
+                else:
+                    # Cap the trailing phrase at 1.8s so the closing word
+                    # doesn't camp on screen for 3s+ when there's silence
+                    # between body end and slogan start.
+                    dur = min(1.8, body_end - ws)
+                beat_inputs.append((png, max(0.6, dur)))
+        else:
+            body_label = _v2_pick_content_word(quote_words[-5:], fallback="wisdom")
+            png = tmpd / "body_fallback.png"
+            _render_v2_body_frame(body_pool[0], body_label, str(png), font_path, is_bracket=True)
+            beat_inputs.append((png, body_duration))
+
+        slogan_png = tmpd / "slogan.png"
+        slogan_image = image_paths[-1]
+        _render_v2_slogan_card(slogan, slogan_image, str(slogan_png), font_path)
+        beat_inputs.append((slogan_png, max(0.5, total - body_end)))
+
+        cmd = ["ffmpeg", "-y"]
+        for png, dur in beat_inputs:
+            cmd += ["-loop", "1", "-t", "%.3f" % dur, "-framerate", "30", "-i", str(png)]
+        cmd += ["-i", str(tts.audio_path)]
+        tts_idx = len(beat_inputs)
+        music_idx = None
+        if music_path and Path(music_path).exists():
+            cmd += ["-stream_loop", "-1", "-i", str(music_path)]
+            music_idx = tts_idx + 1
+
+        n = len(beat_inputs)
+        scale_chains = [
+            "[%d:v]scale=1080:1920:flags=lanczos,setsar=1,format=yuv420p[v%d]" % (i, i)
+            for i in range(n)
+        ]
+        concat_chain = "".join("[v%d]" % i for i in range(n)) + "concat=n=" + str(n) + ":v=1:a=0[vout]"
+
+        if music_idx is not None:
+            # Mix TTS at full volume + music at low volume. Music looped via
+            # -stream_loop -1 so it never runs out mid-reel. amix duration=longest
+            # would extend past TTS; use first to anchor to TTS length.
+            audio_mix = (
+                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=1.0[voice];"
+                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=%.3f,"
+                "afade=t=out:st=%.2f:d=1.2[bg];"
+                "[voice][bg]amix=inputs=2:duration=longest:dropout_transition=0[aout]"
+            ) % (tts_idx, music_idx, music_volume, max(0.5, total - 1.2))
+            filter_complex = ";".join(scale_chains) + ";" + concat_chain + ";" + audio_mix
+            cmd += [
+                "-filter_complex", filter_complex,
+                "-map", "[vout]",
+                "-map", "[aout]",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+                "-c:a", "aac", "-b:a", "192k",
+                "-t", "%.3f" % total,
+                str(output_path),
+            ]
+        else:
+            filter_complex = ";".join(scale_chains) + ";" + concat_chain
+            cmd += [
+                "-filter_complex", filter_complex,
+                "-map", "[vout]",
+                "-map", "%d:a" % tts_idx,
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
+                "-c:a", "aac", "-b:a", "192k",
+                "-t", "%.3f" % total,
+                str(output_path),
+            ]
+
+        log.info("Rendering v2 reel (%d beats)...", n)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            log.error("ffmpeg v2 failed: %s", (result.stderr or "")[-1500:])
+            raise RuntimeError("compose_kinetic_v2 ffmpeg failed")
+
+    log.info("OK: %s", output_path)
+    return str(output_path)

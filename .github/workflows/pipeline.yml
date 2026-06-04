@@ -117,6 +117,10 @@ jobs:
           INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
           INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
           YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/cookies.txt
+          # Ship the kinetic v2 letterbox reels with the deep "elder sage"
+          # narration (tts.py PITCH_SEMITONES -4.5, ~82 Hz). Remove this line
+          # to fall back to the 7s fast-cut capcut style.
+          STYLE: kinetic
         run: python pipeline.py --single
 
       - name: Commit updated state

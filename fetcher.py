@@ -28,7 +28,7 @@ WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {
     "User-Agent": (
         "PhilosopherPipeline/1.1 "
-        "(+https://github.com/they-call-me-god/philosopher-pipeline; "
+        "(+https://github.com/shauryalowkeygotaura/philosopher-pipeline; "
         "instagram-content-bot)"
     ),
     "Accept-Encoding": "gzip",
@@ -240,6 +240,70 @@ def fetch_quote(philosopher: str, used_quotes: list) -> dict:
     if all_quotes:
         return {"quote": all_quotes[0], "reframed": True}
     return {"quote": "The unexamined life is not worth living.", "reframed": True}
+
+
+# Static prefix kept verbatim at the top of every fetch_slogan() call so the
+# Groq prompt cache hit-rate stays high across philosophers (saves ~half the
+# input tokens per call). Interpolated variables only appear in the user msg.
+_SLOGAN_SYSTEM_PROMPT = """You write the closing-climax line of a philosophy Instagram Reel modeled on @wisdomofhidgon.
+
+The line appears full-frame in BIG mixed-size red serif over a portrait of the philosopher, broken into 3-4 lines by the renderer. It is the punchline of the reel.
+
+Rules:
+- Output ONE line only. No quotes, no trailing period, no preamble, no explanation.
+- 4 to 7 words. Never longer.
+- Declarative. Present tense. Image-rich. No abstractions, no academic words.
+- Echo the underlying theme of the quote without restating its words.
+- Avoid cliches: "find your why", "follow your heart", "live your truth", "be yourself", "embrace the journey", "trust the process".
+- Avoid em dashes. Use commas or nothing at all.
+- Match the philosopher's voice (Stoic, absurdist, existentialist, etc.) but stay accessible.
+
+Good examples:
+  Quote: "I would rather live a short life of glory than a long one of obscurity."
+  Slogan: A man of ambition must find his way to the light
+
+  Quote: "He who has a why to live can bear almost any how."
+  Slogan: Carry the why, the how follows
+
+  Quote: "The unexamined life is not worth living."
+  Slogan: Look inward or you will never arrive"""
+
+
+def fetch_slogan(quote: str, philosopher: str) -> str:
+    """Return a 4-7 word climax slogan for the kinetic reel.
+
+    On any failure (missing key, network, malformed output) returns a sane
+    fallback so the pipeline keeps rendering instead of aborting the reel.
+    """
+    import os
+    fallback = "Truth is found alone in the dark"
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        log.warning("fetch_slogan: GROQ_API_KEY missing; using fallback")
+        return fallback
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key)
+        resp = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": _SLOGAN_SYSTEM_PROMPT},
+                {"role": "user", "content": f"Philosopher: {philosopher}\nQuote: {quote}\n\nSlogan:"},
+            ],
+            max_tokens=24,
+            temperature=0.85,
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        raw = raw.strip('"').strip("'").rstrip(".").strip()
+        # Reject pathological outputs (LLM ignored the brevity instruction).
+        if not raw or len(raw.split()) > 9 or len(raw) > 80:
+            log.warning("fetch_slogan: bad output %r; using fallback", raw)
+            return fallback
+        log.info("fetch_slogan: %r", raw)
+        return raw
+    except Exception as e:
+        log.warning("fetch_slogan: %s; using fallback", e)
+        return fallback
 
 
 def match_song(philosopher, quote, songs, used_in_run, used_for_philosopher):

@@ -35,13 +35,13 @@ if _env_file.exists():
 from state import StateManager
 from input_parser import parse_philosophers, parse_songs
 from fetcher import (
-    fetch_quote, match_song, fetch_photo,
+    fetch_quote, fetch_slogan, match_song, fetch_photo,
     fetch_paintings, fetch_portraits, get_bio,
 )
 from composer import (
     compose_image, compose_reel, compose_frame,
     compose_slideshow, compose_slideshow_beat_synced,
-    compose_kinetic_letterbox,
+    compose_kinetic_letterbox, compose_kinetic_v2,
 )
 from scheduler import schedule_uploads
 from uploader import upload_reel
@@ -86,6 +86,14 @@ COLOR_GRADE = os.getenv("COLOR_GRADE", "vintage").strip()
 # red typography, 28s, modeled on @wisdomofhidgon DIA_e3dI9tq).
 STYLE = os.getenv("STYLE", "capcut").strip().lower()
 REEL_DURATION = 28.0 if STYLE == "kinetic" else 7.0
+# Kinetic v2 narration voice. Daniel = deep BBC-style British, matches the
+# @wisdomofhidgon reference. Override via Doppler for A/B tests.
+KINETIC_VOICE = os.getenv("KINETIC_VOICE", "daniel").strip().lower()
+# 0.30 ≈ -10 dB. Loud enough to be present under the cinematic voice without
+# competing with it. The 2026-05-28 default of 0.18 was inaudible to a
+# casual viewer. Set KINETIC_MUSIC_VOLUME=0 to mute, or bump to 0.50 for a
+# more music-forward mix.
+KINETIC_MUSIC_VOLUME = float(os.getenv("KINETIC_MUSIC_VOLUME", "0.30"))
 
 # Hooks rotate by post_count so the same opening line never repeats per
 # philosopher, which avoids the IG "duplicate caption" downranking.
@@ -249,10 +257,15 @@ def main(upload_now=True, single=False, generate_only=False):
         )
         try:
             if STYLE == "kinetic":
-                compose_kinetic_letterbox(
+                slogan = fetch_slogan(quote, philosopher)
+                log.info("  Slogan: %s", slogan)
+                compose_kinetic_v2(
                     frames, quote, philosopher,
-                    audio_path, mp4_path, str(FONT_PATH),
-                    reel_duration=REEL_DURATION,
+                    mp4_path, str(FONT_PATH),
+                    slogan=slogan,
+                    voice=KINETIC_VOICE,
+                    music_path=audio_path,
+                    music_volume=KINETIC_MUSIC_VOLUME,
                 )
             elif USE_BEAT_SYNC:
                 compose_slideshow_beat_synced(
@@ -335,6 +348,22 @@ def _philosopher_slug(name):
     return "".join(c for c in slug if c.isalnum() or c == "-")
 
 
+def _yt_dlp_cmd():
+    """Resolve how to invoke yt-dlp.
+
+    Prefer a `yt-dlp` launcher on PATH (how GitHub Actions installs it), but
+    fall back to `python -m yt_dlp` using the SAME interpreter running the
+    pipeline. The module form is what's actually guaranteed by
+    requirements.txt (`yt-dlp>=...`); a bare `yt-dlp.exe` only exists if the
+    install env's Scripts/ dir happens to be on PATH, which it isn't under
+    the local run_pipeline.bat path. Without this, `subprocess.run(["yt-dlp",
+    ...])` raises FileNotFoundError locally even though yt_dlp is installed.
+    """
+    import shutil
+    found = shutil.which("yt-dlp")
+    return [found] if found else [sys.executable, "-m", "yt_dlp"]
+
+
 def _download_audio(song_url, cache_dir, state):
     import re
     import subprocess
@@ -347,7 +376,7 @@ def _download_audio(song_url, cache_dir, state):
         return str(cached)
 
     cmd = [
-        "yt-dlp",
+        *_yt_dlp_cmd(),
         "--format", "bestaudio",
         "--extract-audio",
         "--audio-format", "m4a",
