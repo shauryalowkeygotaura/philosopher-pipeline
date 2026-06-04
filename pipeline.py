@@ -109,8 +109,12 @@ HOOKS = [
     "they wrote this 200+ years ago. still hits.",
 ]
 
-# Focused 5-tag set outperforms 30-tag spam under the 2025 algo.
-HASHTAGS = "#philosophy #stoicism #renaissance #wisdom #deepthoughts"
+# Niche targeting tags (who the post is FOR) followed by broad reach tags
+# (#fyp / #viral etc.) to push the reel onto Explore + Reels feeds. Niche tags
+# go first so IG categorises the content correctly before the reach tags widen it.
+NICHE_TAGS = "#philosophy #stoicism #renaissance #wisdom #deepthoughts #mindset #motivation"
+REACH_TAGS = "#fyp #fypシ #viral #reels #reelsinstagram #explore #explorepage #trending #foryou #viralreels"
+HASHTAGS = NICHE_TAGS + " " + REACH_TAGS
 
 # Soft CTA priorities: saves > follows > likes for IG retention scoring.
 CTA_LINE = (
