@@ -1,15 +1,15 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-06-04T14:36:05Z",
+  "ts": "2026-06-04T16:34:44Z",
   "mode": "kinetic",
   "status": "ok",
-  "summary": "Deep elder-sage voice shipped (kinetic v2, measured 82 Hz); smoke reel verified locally",
+  "summary": "Generated 1 kinetic reel(s) (Marcus Aurelius), uploaded 1",
   "metrics": {
     "generated": 1,
-    "uploaded": 0,
+    "uploaded": 1,
     "style": "kinetic",
     "philosophers": [
-      "Albert Camus"
+      "Marcus Aurelius"
     ]
   },
   "budgets": {
@@ -17,7 +17,7 @@
       "note": "free, no key"
     },
     "groq": {
-      "note": "free tier"
+      "note": "free tier (slogan generation)"
     }
   }
 }
