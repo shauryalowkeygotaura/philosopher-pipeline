@@ -51,24 +51,24 @@ VOICES = {
 # the @wisdomofhidgon reference voice profiles at ~80-90 Hz median F0, while raw
 # edge-tts (Andrew) lands at ~104 Hz.
 #
-# Voice brief = "old, deep, full of wisdom" (user, 2026-06-04). We want an aged
-# sage, not just a deep announcer, so we push past the earlier -3 (~87 Hz) to
-# -4.5 semitones: 104 Hz * 2^(-4.5/12) = ~80 Hz, sitting at the FLOOR of the
-# reference band (the gravest, oldest end). Slower default rate (-22%) makes
-# the delivery measured/deliberate, and a slightly longer reverb tail adds the
-# resonant, contemplative space of an elder speaking in a large room.
+# Voice tuning history: -3 (~87 Hz) -> -4.5 "old/deep" (~82 Hz) -> -2.5 "lighter"
+# (user, 2026-06-05). "Lighter" = raise pitch back up to ~90 Hz (104 Hz *
+# 2^(-2.5/12)), the bright/upper end of the @wisdomofhidgon band, plus ease the
+# two other "heaviness" levers: rate back to -20% (less ponderous, see the rate
+# default below) and a shorter reverb tail (50/90 ms taps, lower decay) so the
+# voice sits forward instead of in a cavernous room. Still cinematic, just airier.
 #   asetrate=44100*ratio + atempo=1/ratio -> pitch shift at unchanged speed
-#   aecho                                  -> longer-tail body (60/110 ms taps)
+#   aecho                                  -> short-tail body (50/90 ms taps)
 #   acompressor 2.5:1                      -> gentle narrator compression
 #   loudnorm -14 LUFS / -1.5 TP            -> IG-friendly loudness target
-PITCH_SEMITONES = -4.5
+PITCH_SEMITONES = -2.5
 
 
 def _build_cinematic_filter(semitones: float = PITCH_SEMITONES) -> str:
     ratio = 2 ** (semitones / 12.0)  # <1 lowers pitch
     return (
         f"asetrate=44100*{ratio:.4f},aresample=44100,atempo={1/ratio:.4f},"
-        "aecho=0.7:0.4:60|110:0.12|0.08,"
+        "aecho=0.7:0.4:50|90:0.10|0.06,"
         "acompressor=threshold=-18dB:ratio=2.5:attack=10:release=120,"
         "loudnorm=I=-14:TP=-1.5:LRA=8"
     )
@@ -89,7 +89,7 @@ def synthesize_quote(
     out_dir: Path | str,
     voice: str = "daniel",
     slogan: str | None = None,
-    rate: str = "-22%",
+    rate: str = "-20%",
     volume: str = "+0%",
     hook_word_count: int = 4,
     brand_gap_sec: float = 1.2,
