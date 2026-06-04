@@ -1,0 +1,23 @@
+{
+  "pipeline": "philosopher",
+  "ts": "2026-06-04T14:36:05Z",
+  "mode": "kinetic",
+  "status": "ok",
+  "summary": "Deep elder-sage voice shipped (kinetic v2, measured 82 Hz); smoke reel verified locally",
+  "metrics": {
+    "generated": 1,
+    "uploaded": 0,
+    "style": "kinetic",
+    "philosophers": [
+      "Albert Camus"
+    ]
+  },
+  "budgets": {
+    "edge_tts": {
+      "note": "free, no key"
+    },
+    "groq": {
+      "note": "free tier"
+    }
+  }
+}

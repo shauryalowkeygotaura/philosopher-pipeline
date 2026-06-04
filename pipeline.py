@@ -45,6 +45,7 @@ from composer import (
 )
 from scheduler import schedule_uploads
 from uploader import upload_reel
+import run_metrics
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -315,8 +316,11 @@ def main(upload_now=True, single=False, generate_only=False):
 
     if not generated:
         log.warning("No reels generated. Exiting.")
+        run_metrics.write(mode=STYLE, status="degraded",
+                          summary="No reels generated (no eligible philosopher / asset fetch failed)")
         return
 
+    uploaded = 0
     if generate_only:
         log.info("--generate-only: %d reel(s) saved to output/, skipping upload.", len(generated))
         for reel in generated:
@@ -327,12 +331,24 @@ def main(upload_now=True, single=False, generate_only=False):
             log.info("  Uploading %s...", reel["philosopher"])
             try:
                 upload_reel(reel["mp4_path"], reel["caption"], reel.get("jpg_path"))
+                uploaded += 1
                 log.info("  Uploaded %s", reel["philosopher"])
             except Exception as e:
                 log.error("  Upload failed for %s: %s", reel["philosopher"], e)
     else:
         log.info("Scheduling %d reels...", len(generated))
         schedule_uploads(generated, upload_reel)
+
+    who = ", ".join(r["philosopher"] for r in generated)
+    run_metrics.write(
+        mode=STYLE, status="ok",
+        summary=(f"Generated {len(generated)} {STYLE} reel(s) ({who})"
+                 + (f", uploaded {uploaded}" if upload_now else " (not uploaded)")),
+        metrics={"generated": len(generated), "uploaded": uploaded,
+                 "style": STYLE, "philosophers": [r["philosopher"] for r in generated]},
+        budgets={"edge_tts": {"note": "free, no key"},
+                 "groq": {"note": "free tier (slogan generation)"}},
+    )
 
 
 def _philosopher_slug(name):
@@ -408,4 +424,9 @@ if __name__ == "__main__":
     parser.add_argument("--single", action="store_true", help="Process only the philosopher with the fewest posts")
     parser.add_argument("--generate-only", action="store_true", help="Generate reel but do not upload (saves to output/)")
     args = parser.parse_args()
-    main(upload_now=not args.schedule, single=args.single, generate_only=args.generate_only)
+    try:
+        main(upload_now=not args.schedule, single=args.single, generate_only=args.generate_only)
+    except Exception as e:
+        # Record the failure for the dashboard, then re-raise so CI goes red.
+        run_metrics.write(mode=STYLE, status="error", summary=f"{type(e).__name__}: {e}")
+        raise
