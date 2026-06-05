@@ -95,6 +95,9 @@ KINETIC_VOICE = os.getenv("KINETIC_VOICE", "daniel").strip().lower()
 # casual viewer. Set KINETIC_MUSIC_VOLUME=0 to mute, or bump to 0.50 for a
 # more music-forward mix.
 KINETIC_MUSIC_VOLUME = float(os.getenv("KINETIC_MUSIC_VOLUME", "0.30"))
+# Music-only lead-in seconds before the narration starts (black screen, music
+# ~2x its under-voice level, ducking down as the voice enters). 0 disables.
+KINETIC_INTRO = float(os.getenv("KINETIC_INTRO", "1.5"))
 
 # Hooks rotate by post_count so the same opening line never repeats per
 # philosopher, which avoids the IG "duplicate caption" downranking.
@@ -271,6 +274,7 @@ def main(upload_now=True, single=False, generate_only=False):
                     voice=KINETIC_VOICE,
                     music_path=audio_path,
                     music_volume=KINETIC_MUSIC_VOLUME,
+                    music_intro_sec=KINETIC_INTRO,
                 )
             elif USE_BEAT_SYNC:
                 compose_slideshow_beat_synced(

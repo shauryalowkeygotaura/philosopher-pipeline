@@ -1514,6 +1514,7 @@ def compose_kinetic_v2(
     music_volume=0.30,
     slogan_hold=3.5,
     brand_subtitle="",
+    music_intro_sec=1.5,
 ):
     """V2 kinetic reel: TTS-driven 5-beat structure matching @wisdomofhidgon.
 
@@ -1525,6 +1526,11 @@ def compose_kinetic_v2(
     slogan_hold: seconds to hold the closing slogan card on screen AFTER the
         voice ends. Without this the final card flashes by in <2s and viewers
         miss the punchline.
+    music_intro_sec: music-only lead-in BEFORE the voice starts (user,
+        2026-06-05: 'the music should play before'). Black screen, music at
+        ~2x its under-voice level, easing down over the last 0.8s so the
+        narration enters over an already-settled bed. 0 disables; ignored
+        when there is no music.
     """
     from tts import synthesize_quote
 
@@ -1550,6 +1556,13 @@ def compose_kinetic_v2(
     # Hold the closing slogan for slogan_hold seconds after voice ends so the
     # punchline registers. Without this, slogan flashes in <2s.
     total = tts.duration_sec + slogan_hold
+
+    # Music-only lead-in. All beat math below stays in VOICE-time; the intro
+    # beat prepended to the concat shifts every visual by `intro` seconds and
+    # adelay shifts the voice by the same amount, so word-reveal sync holds.
+    has_music = bool(music_path and Path(music_path).exists())
+    intro = max(0.0, music_intro_sec) if has_music else 0.0
+    final_total = total + intro
 
     n_hook = min(4, len(quote_words))
     hook_times = [(qw[0], qw[1], qw[2]) for qw in quote_words[:n_hook]]
@@ -1588,7 +1601,8 @@ def compose_kinetic_v2(
     body_end = min(body_end, total - 1.5)
 
     log.info(
-        "Beats: hook 0-%.2fs | breath %.2f-%.2fs | brand %.2f-%.2fs | body %.2f-%.2fs | slogan %.2f-%.2fs",
+        "Beats (voice-time%s): hook 0-%.2fs | breath %.2f-%.2fs | brand %.2f-%.2fs | body %.2f-%.2fs | slogan %.2f-%.2fs",
+        ", +%.1fs music intro" % intro if intro > 0 else "",
         hook_end, hook_end, breath_end, breath_end, brand_end, brand_end, body_end, body_end, total,
     )
 
@@ -1598,6 +1612,13 @@ def compose_kinetic_v2(
         # set, the base gets the Ken Burns pull-back and the text PNG is
         # composited on top WITHOUT motion (picture moves, words stay put).
         beat_inputs = []
+
+        if intro > 0:
+            # Music-only lead-in: black screen while the bed establishes,
+            # voice (and the hook text) enter after `intro` seconds.
+            intro_png = tmpd / "intro.png"
+            _render_v2_black(str(intro_png))
+            beat_inputs.append((intro_png, intro, None))
 
         # Hook: group into 2-word phrases (matches reference reel's
         # "I would" / "life of" pattern). 4 single-word cuts at ~0.7s each
@@ -1703,12 +1724,13 @@ def compose_kinetic_v2(
         _render_v2_slogan_base(slogan_image, str(slogan_base_png))
         _render_v2_slogan_card(slogan, slogan_image, str(slogan_text_png), font_path,
                                overlay_only=True)
-        # The slogan beat absorbs whatever the timeline still owes (total minus
-        # the concat position so far), NOT total - body_end: the trailing body
-        # phrase is capped at 1.8s, and without repaying that shaved time here
-        # the video track ends ~2s before the voice finishes the slogan.
+        # The slogan beat absorbs whatever the timeline still owes (final_total
+        # minus the concat position so far), NOT total - body_end: the trailing
+        # body phrase is capped at 1.8s, and without repaying that shaved time
+        # here the video track ends ~2s before the voice finishes the slogan.
+        # elapsed already includes the music intro beat.
         elapsed = sum(d for _, d, _ in beat_inputs)
-        beat_inputs.append((slogan_base_png, max(0.5, total - elapsed), slogan_text_png))
+        beat_inputs.append((slogan_base_png, max(0.5, final_total - elapsed), slogan_text_png))
 
         cmd = ["ffmpeg", "-y"]
         # Static text overlays are extra inputs, so input index != beat index.
@@ -1750,12 +1772,34 @@ def compose_kinetic_v2(
             # Mix TTS at full volume + music at low volume. Music looped via
             # -stream_loop -1 so it never runs out mid-reel. amix duration=longest
             # would extend past TTS; use first to anchor to TTS length.
+            voice_chain = "aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo"
+            delay_ms = int(round(intro * 1000))
+            if delay_ms > 0:
+                # Push the voice past the music-only intro; the prepended black
+                # intro beat shifts the visuals by the same amount, so the
+                # word-reveal sync is untouched.
+                voice_chain += ",adelay=%d:all=1" % delay_ms
+            voice_chain += ",volume=1.0"
+            if intro > 0.05:
+                # Intro bed rides ~2x the under-voice level (capped at 0.85 so
+                # loud tracks don't clip), easing down over the last 0.8s so
+                # the music is already settled when the narration enters.
+                iv = min(0.85, music_volume * 2.0)
+                ramp = min(0.8, intro)
+                t0 = intro - ramp
+                vol_expr = (
+                    "volume='if(lt(t,%.3f),%.3f,"
+                    "if(lt(t,%.3f),%.3f+(%.3f-%.3f)*(t-%.3f)/%.3f,%.3f))':eval=frame"
+                    % (t0, iv, intro, iv, music_volume, iv, t0, ramp, music_volume)
+                )
+            else:
+                vol_expr = "volume=%.3f" % music_volume
             audio_mix = (
-                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=1.0[voice];"
-                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,volume=%.3f,"
+                "[%d:a]%s[voice];"
+                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,%s,"
                 "afade=t=out:st=%.2f:d=1.2[bg];"
                 "[voice][bg]amix=inputs=2:duration=longest:dropout_transition=0[aout]"
-            ) % (tts_idx, music_idx, music_volume, max(0.5, total - 1.2))
+            ) % (tts_idx, voice_chain, music_idx, vol_expr, max(0.5, final_total - 1.2))
             filter_complex = ";".join(scale_chains) + ";" + concat_chain + ";" + audio_mix
             cmd += [
                 "-filter_complex", filter_complex,
@@ -1763,7 +1807,7 @@ def compose_kinetic_v2(
                 "-map", "[aout]",
                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
                 "-c:a", "aac", "-b:a", "192k",
-                "-t", "%.3f" % total,
+                "-t", "%.3f" % final_total,
                 str(output_path),
             ]
         else:
@@ -1774,7 +1818,7 @@ def compose_kinetic_v2(
                 "-map", "%d:a" % tts_idx,
                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
                 "-c:a", "aac", "-b:a", "192k",
-                "-t", "%.3f" % total,
+                "-t", "%.3f" % final_total,
                 str(output_path),
             ]
 
