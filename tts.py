@@ -52,24 +52,25 @@ VOICES = {
 # edge-tts (Andrew) lands at ~104 Hz.
 #
 # Voice tuning history: -3 (~87 Hz) -> -4.5 "old/deep" (~82 Hz) -> -2.5 "lighter"
-# (user, 2026-06-05). "Lighter" = raise pitch back up to ~90 Hz (104 Hz *
-# 2^(-2.5/12)), the bright/upper end of the @wisdomofhidgon band, plus ease the
-# two other "heaviness" levers: rate back to -20% (less ponderous, see the rate
-# default below) and a shorter reverb tail (50/90 ms taps, lower decay) so the
-# voice sits forward instead of in a cavernous room. Still cinematic, just airier.
+# (user, 2026-06-05) -> -1.0 "lighter still" (user, 2026-06-05). Each "lighter"
+# step raises pitch and eases the heaviness levers. "Lighter still" = ~98 Hz
+# (104 Hz * 2^(-1.0/12)), the bright upper edge of the @wisdomofhidgon band, plus
+# rate eased to -12% (less ponderous, see the rate default below), a drier/shorter
+# reverb tail (40/70 ms taps, lower decay) so the voice sits forward instead of in
+# a cavernous room, and gentler 2:1 compression. Still cinematic, just airier.
 #   asetrate=44100*ratio + atempo=1/ratio -> pitch shift at unchanged speed
-#   aecho                                  -> short-tail body (50/90 ms taps)
-#   acompressor 2.5:1                      -> gentle narrator compression
+#   aecho                                  -> short-tail body (40/70 ms taps)
+#   acompressor 2:1                        -> gentle narrator compression
 #   loudnorm -14 LUFS / -1.5 TP            -> IG-friendly loudness target
-PITCH_SEMITONES = -2.5
+PITCH_SEMITONES = -1.0
 
 
 def _build_cinematic_filter(semitones: float = PITCH_SEMITONES) -> str:
     ratio = 2 ** (semitones / 12.0)  # <1 lowers pitch
     return (
         f"asetrate=44100*{ratio:.4f},aresample=44100,atempo={1/ratio:.4f},"
-        "aecho=0.7:0.4:50|90:0.10|0.06,"
-        "acompressor=threshold=-18dB:ratio=2.5:attack=10:release=120,"
+        "aecho=0.6:0.3:40|70:0.07|0.04,"
+        "acompressor=threshold=-18dB:ratio=2.0:attack=10:release=120,"
         "loudnorm=I=-14:TP=-1.5:LRA=8"
     )
 
@@ -89,13 +90,20 @@ def synthesize_quote(
     out_dir: Path | str,
     voice: str = "daniel",
     slogan: str | None = None,
-    rate: str = "-20%",
+    rate: str = "-22%",
     volume: str = "+0%",
     hook_word_count: int = 4,
     brand_gap_sec: float = 1.2,
     slogan_gap_sec: float = 1.2,
     cinematic: bool = True,
     pitch_semitones: float = PITCH_SEMITONES,
+    # Cadence controls for a slower, "wisdomful" delivery (added 2026-06-05).
+    # Mid-line pauses felt awkward (user, 2026-06-05) so they default OFF; the
+    # drawn-out opening + slow rate + the structural brand beat carry the weight.
+    phrase_pause_sec: float = 0.0,    # beat of silence at punctuation cuts (0 = off)
+    pause_every_words: int = 0,       # also insert a beat every N words (0 = off)
+    drawl_words: int = 3,             # elongate the first N words ("I  wouuuld  ratheer")
+    drawl_factor: float = 1.38,       # how much to stretch them (1.0 = off)
     # Legacy ElevenLabs kwargs kept so existing call sites don't break.
     stability: float = 0.55,
     similarity_boost: float = 0.85,
@@ -108,12 +116,13 @@ def synthesize_quote(
     speed: float = 1.0,
     post_speed: float = 1.0,
 ) -> TTSResult:
-    """Render narration in 2-3 segments with silence gaps so the kinetic v2
-    beats (hook → breath → brand → body → slogan) align with the voice.
+    """Render narration as word-aligned chunks with silence beats between them
+    so the delivery breathes (hook -> brand beat -> body, paused a thought at a
+    time) and the kinetic v2 reveals stay in sync with the voice.
 
-    Layout:
-        [hook (N words)] + [brand_gap silence] + [rest of quote] +
-        [slogan_gap silence] + [slogan]
+    The opening `drawl_words` words are time-stretched for a slow, deliberate
+    "I  wouuuld  ratheer" entrance; pauses land at the hook boundary, at
+    punctuation, and every `pause_every_words` words.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -124,50 +133,68 @@ def synthesize_quote(
     words = quote.strip().split()
     n_hook = min(hook_word_count, len(words))
 
-    log.info("TTS: %d words, voice=%s (edge=%s), rate=%s, cinematic=%s",
-             len(words), voice, edge_voice, rate, cinematic)
+    log.info("TTS: %d words, voice=%s (edge=%s), rate=%s, drawl=%dx%.2f, pause=%.2fs/%d, cinematic=%s",
+             len(words), voice, edge_voice, rate, drawl_words, drawl_factor,
+             phrase_pause_sec, pause_every_words, cinematic)
 
-    # 1. Render the FULL quote in ONE TTS call so prosody flows naturally —
-    # the previous hook/rest split sounded like two different takes because
-    # each TTS call starts with sentence-initial prosody. Single call =
-    # one continuous voice character throughout the quote.
+    # 1. Render the FULL quote in ONE TTS call so prosody flows naturally — the
+    # previous hook/rest split sounded like two takes because each TTS call
+    # starts with sentence-initial prosody. One call = one continuous character.
     quote_mp3 = out_dir / f"{slug}_quote.mp3"
     quote_word_timings = asyncio.run(_render(quote, edge_voice, rate, volume, quote_mp3))
     quote_dur = _probe_duration(quote_mp3)
 
-    # 2. Surgically slice the quote audio at the natural word boundary
-    # between word N and word N+1, then re-concat with `brand_gap_sec` of
-    # silence inserted. Cut point lands midway in the inter-word silence so
-    # we never clip a phoneme.
+    # 2. A "wisdomful" delivery breathes and lands one thought at a time, so we
+    # cut the single render into chunks and insert a beat of silence after the
+    # hook (the brand-card beat), at punctuation, and on a regular cadence. The
+    # first `drawl_words` words are isolated and time-stretched — the drawn-out
+    # "I  wouuuld  ratheer" opening. Cuts land midway in inter-word silence so no
+    # phoneme is clipped, and every word timing is recomputed against the new
+    # layout so the kinetic on-screen reveals stay in sync.
+    # edge-tts may emit a different number of word boundaries than `quote.split()`
+    # (punctuation/merging), so index everything off quote_word_timings — the
+    # thing we actually slice — to avoid an out-of-range cut index.
+    n_words = len(quote_word_timings)
+    n_hook = min(hook_word_count, n_words)
+    pause_after: dict = {}
+    if 0 < n_hook < n_words:
+        pause_after[n_hook - 1] = brand_gap_sec
+    if phrase_pause_sec > 0:
+        for i in range(n_words - 1):
+            if quote_word_timings[i][0].strip()[-1:] in ",.;:!?":
+                pause_after[i] = max(pause_after.get(i, 0.0), phrase_pause_sec)
+    if pause_every_words > 0:
+        for i in range(pause_every_words - 1, n_words - 1, pause_every_words):
+            pause_after.setdefault(i, phrase_pause_sec)
+
+    n_drawl = min(drawl_words, n_words - 1) if drawl_factor > 1.0 else 0
+    if n_drawl > 0:
+        pause_after.setdefault(n_drawl - 1, 0.0)  # 0s: just isolate the chunk to stretch it
+
+    cut_indices = sorted(pause_after)
+    chunk_times, chunk_word_ranges = _midpoint_splits(quote_word_timings, cut_indices, quote_dur)
+
     segments: List[dict] = []
     all_timings: List[Tuple[str, float, float]] = []
     cursor = 0.0
-
-    if len(quote_word_timings) > n_hook and n_hook > 0:
-        hook_end = quote_word_timings[n_hook - 1][2]
-        rest_start = quote_word_timings[n_hook][1]
-        t_split = (hook_end + rest_start) / 2
-
-        hook_part = out_dir / f"{slug}_hook_part.mp3"
-        rest_part = out_dir / f"{slug}_rest_part.mp3"
-        _cut_at(quote_mp3, 0.0, t_split, hook_part)
-        _cut_at(quote_mp3, t_split, quote_dur, rest_part)
-
-        segments.append({"path": hook_part})
-        segments.append({"silence": brand_gap_sec})
-        segments.append({"path": rest_part})
-
-        # Hook words keep their original timings; rest words shift by +gap.
-        for i, (w, s, e) in enumerate(quote_word_timings):
-            if i < n_hook:
-                all_timings.append((w, s, e))
-            else:
-                all_timings.append((w, s + brand_gap_sec, e + brand_gap_sec))
-        cursor = quote_dur + brand_gap_sec
-    else:
-        segments.append({"path": quote_mp3})
-        all_timings.extend(quote_word_timings)
-        cursor = quote_dur
+    for j, ((ta, tb), (ws, we)) in enumerate(zip(chunk_times, chunk_word_ranges)):
+        part = out_dir / f"{slug}_chunk{j}.mp3"
+        _cut_at(quote_mp3, ta, tb, part)
+        # Drawl only the opening chunk (the one that starts at word 0).
+        stretch = drawl_factor if (n_drawl > 0 and ws == 0) else 1.0
+        if stretch != 1.0:
+            drawled = out_dir / f"{slug}_chunk{j}_drawl.mp3"
+            _atempo_stretch(part, drawled, stretch)
+            part = drawled
+        for k in range(ws, we):
+            w, s, e = quote_word_timings[k]
+            all_timings.append((w, cursor + (s - ta) * stretch, cursor + (e - ta) * stretch))
+        segments.append({"path": part})
+        cursor += (tb - ta) * stretch
+        gap = pause_after.get(we - 1, 0.0)
+        if gap > 0:
+            segments.append({"silence": gap})
+            cursor += gap
 
     # 3. Slogan is a separate utterance by design — fresh sentence-initial
     # prosody is correct here (it's the punchline, not a continuation).
@@ -258,6 +285,42 @@ def _cut_at(src: Path, t_start: float, t_end: float, out: Path) -> None:
         "-ar", "44100",
         "-c:a", "libmp3lame", "-b:a", "192k",
         str(out),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+
+
+def _midpoint_splits(word_timings, cut_after, total_dur):
+    """Split a quote render into chunks, cutting AFTER each word index in
+    `cut_after`. Each cut time lands midway in the inter-word silence between the
+    cut word and the next, so no phoneme is clipped. Returns two per-chunk lists:
+    (time_range (t_start, t_end), word_index_range (start, end_exclusive)).
+    Empty `cut_after` yields a single chunk spanning the whole render."""
+    cuts = sorted(i for i in set(cut_after) if 0 <= i < len(word_timings) - 1)
+    bounds = []
+    for idx in cuts:
+        e = word_timings[idx][2]
+        s = word_timings[idx + 1][1] if idx + 1 < len(word_timings) else total_dur
+        bounds.append((e + s) / 2.0)
+    times = [0.0] + bounds + [total_dur]
+    starts = [0] + [c + 1 for c in cuts]
+    ends = [c + 1 for c in cuts] + [len(word_timings)]
+    return list(zip(times[:-1], times[1:])), list(zip(starts, ends))
+
+
+def _atempo_stretch(src: Path, dst: Path, factor: float) -> None:
+    """Lengthen `src` by `factor` (1.4 = 40% longer / slower) via ffmpeg atempo,
+    which changes tempo without touching pitch. atempo slows when its argument is
+    < 1, so we pass 1/factor. atempo's valid range is 0.5-2.0, i.e. factor in
+    [0.5, 2.0]; we clamp to stay safe."""
+    factor = max(0.5, min(2.0, factor))
+    tempo = 1.0 / factor
+    cmd = [
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", str(src),
+        "-filter:a", f"atempo={tempo:.4f}",
+        "-ar", "44100",
+        "-c:a", "libmp3lame", "-b:a", "192k",
+        str(dst),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
 
