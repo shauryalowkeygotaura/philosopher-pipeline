@@ -1260,7 +1260,12 @@ def _render_v2_brand_card(philosopher, portrait_path, output_path, font_path,
 
 
 def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=False):
-    """Beat 4: letterbox image band + small red italic text below."""
+    """Beat 4: letterbox image band + red italic phrase.
+
+    Short phrases sit in the black strip BELOW the band. Long phrases (that would
+    overflow one line at full size) are auto-shrunk, wrapped, and laid OVER the
+    top of the image with a dark scrim so they stay readable (user: 'sometimes i
+    cant read it ... put the new text on top of the picture instead of bottom')."""
     img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
     band_top = V2_BODY_BAND_TOP
     band_h = V2_BODY_BAND_HEIGHT
@@ -1284,10 +1289,45 @@ def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=F
     overlay = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     display = "[" + text + "]" if is_bracket else text
-    font = _load_font(font_path, 76)
     cx = REEL_WIDTH // 2
-    cy = band_top + band_h + 90
-    draw.text((cx, cy), display, font=font, fill=KINETIC_RED + (255,), anchor="mm")
+    margin = 56
+    max_w = REEL_WIDTH - 2 * margin
+
+    # Size to fit: 76 -> 60 -> 48 until the phrase wraps to at most two lines, so
+    # even long reveals stay on a couple of readable lines instead of one
+    # clipped line running off both edges of the frame.
+    font = _load_font(font_path, 76)
+    wrapped = _wrap_text(display, font, draw, max_w)
+    for size in (76, 60, 48):
+        font = _load_font(font_path, size)
+        wrapped = _wrap_text(display, font, draw, max_w)
+        if wrapped.count("\n") + 1 <= 2:
+            break
+    n_lines = wrapped.count("\n") + 1
+
+    if n_lines == 1:
+        # Short: red phrase in the black strip below the band (the original look).
+        cy = band_top + band_h + 90
+        draw.text((cx + 2, cy + 2), wrapped, font=font, fill=(0, 0, 0, 200), anchor="mm")
+        draw.text((cx, cy), wrapped, font=font, fill=KINETIC_RED + (255,), anchor="mm")
+    else:
+        # Long: lay it OVER the top of the picture, on a dark scrim for contrast.
+        spacing = 14
+        top_y = band_top + 40
+        tb = draw.multiline_textbbox((cx, top_y), wrapped, font=font,
+                                     anchor="ma", align="center", spacing=spacing)
+        pad = 26
+        scrim_top = max(0, tb[1] - pad)
+        scrim_bot = min(REEL_HEIGHT, tb[3] + pad)
+        scrim = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
+        ImageDraw.Draw(scrim).rectangle(
+            [0, scrim_top, REEL_WIDTH, scrim_bot], fill=(0, 0, 0, 165))
+        overlay = Image.alpha_composite(overlay, scrim)
+        draw = ImageDraw.Draw(overlay)
+        draw.multiline_text((cx + 2, top_y + 2), wrapped, font=font,
+                            fill=(0, 0, 0, 210), anchor="ma", align="center", spacing=spacing)
+        draw.multiline_text((cx, top_y), wrapped, font=font,
+                            fill=KINETIC_RED + (255,), anchor="ma", align="center", spacing=spacing)
 
     final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     final.save(output_path, "PNG")
@@ -1384,6 +1424,35 @@ def _v2_split_slogan(slogan):
         out.append(" ".join(words[i:i + take]))
         i += take
     return out
+
+
+def _v2_kenburns_chain(idx, length_sec):
+    """Per-beat motion for compose_kinetic_v2: a slow pull-back (Ken Burns
+    zoom-OUT) so each slide 'extends' / settles instead of sitting dead-still
+    (user, 2026-06-05). The beat starts ~7% enlarged and eases to the full frame
+    across its duration; since zoom only ever decreases toward 1.0 (full frame),
+    no black edge is revealed.
+
+    Implementation note: the zoom is driven by zoompan's `on` (output-frame
+    index), not crop's `t`. crop evaluates w/h once at config time, so a t-based
+    crop SIZE never animates. zoompan re-evaluates z per frame; d=1 keeps a
+    `-loop 1 -t SEG` input's SEG*30 frames 1:1 and avoids the d=SEG*30 ->
+    (SEG*30)^2 frame blowup the older _kinetic_image_filter warns about.
+    """
+    # Drive the zoom with zoompan's `on` (output-frame index), NOT crop's `t`:
+    # the crop filter evaluates w/h ONCE at config time, so a t-based crop size
+    # never actually animates. zoompan re-evaluates z every frame. Use d=1 (one
+    # output frame per input frame) so a `-loop 1 -t SEG` input of SEG*30 frames
+    # yields SEG*30 output frames, sidestepping the d=SEG*30 -> (SEG*30)^2 blowup.
+    frames = max(1, int(round(length_sec * 30)))
+    denom = max(1, frames - 1)
+    z = "1.07-0.07*min(on/%d,1)" % denom  # zoom 1.07 -> 1.00 (zoompan z is >= 1)
+    chain = (
+        "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,"
+        "zoompan=z='%s':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+        ":s=1080x1920:fps=30,setsar=1,format=yuv420p"
+    ) % z
+    return "[%d:v]%s[v%d]" % (idx, chain, idx)
 
 
 def compose_kinetic_v2(
@@ -1588,8 +1657,9 @@ def compose_kinetic_v2(
             music_idx = tts_idx + 1
 
         n = len(beat_inputs)
+        # Slow pull-back on every beat so the slides move (user, 2026-06-05).
         scale_chains = [
-            "[%d:v]scale=1080:1920:flags=lanczos,setsar=1,format=yuv420p[v%d]" % (i, i)
+            _v2_kenburns_chain(i, beat_inputs[i][1])
             for i in range(n)
         ]
         concat_chain = "".join("[v%d]" % i for i in range(n)) + "concat=n=" + str(n) + ":v=1:a=0[vout]"

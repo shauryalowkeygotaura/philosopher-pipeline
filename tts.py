@@ -104,7 +104,8 @@ def synthesize_quote(
     # Cadence controls for a slower, "wisdomful" delivery (added 2026-06-05).
     # Mid-line pauses felt awkward (user, 2026-06-05) so they default OFF; the
     # drawn-out opening + slow rate + the structural brand beat carry the weight.
-    phrase_pause_sec: float = 0.0,    # beat of silence at punctuation cuts (0 = off)
+    phrase_pause_sec: float = 0.0,    # beat at ANY punctuation incl. commas (0 = off)
+    sentence_pause_sec: float = 0.55,  # beat after a sentence ends (. ! ?) so it lands
     pause_every_words: int = 0,       # also insert a beat every N words (0 = off)
     drawl_words: int = 3,             # elongate the first N words ("I  wouuuld  ratheer")
     drawl_factor: float = 1.38,       # how much to stretch them (1.0 = off)
@@ -167,6 +168,13 @@ def synthesize_quote(
         for i in range(n_words - 1):
             if quote_word_timings[i][0].strip()[-1:] in ",.;:!?":
                 pause_after[i] = max(pause_after.get(i, 0.0), phrase_pause_sec)
+    # Sentence-end beats: let a finished thought land before the next begins.
+    # Only fires between sentences (not after the final word), so single-sentence
+    # quotes stay continuous — exactly the flow the user approved.
+    if sentence_pause_sec > 0:
+        for i in range(n_words - 1):
+            if quote_word_timings[i][0].strip()[-1:] in ".!?":
+                pause_after[i] = max(pause_after.get(i, 0.0), sentence_pause_sec)
     if pause_every_words > 0:
         for i in range(pause_every_words - 1, n_words - 1, pause_every_words):
             pause_after.setdefault(i, phrase_pause_sec)
