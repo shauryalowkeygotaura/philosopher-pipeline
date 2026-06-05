@@ -397,13 +397,38 @@ def _download_audio(song_url, cache_dir, state):
     cached = cache_dir / (video_id + ".m4a")
 
     if cached.exists() and cached.stat().st_size > 0:
-        return str(cached)
+        # Trust but verify: an interrupted download can leave a non-empty file
+        # with no moov atom (found 2026-06-06: AswXiy8JCsI.m4a), which passes
+        # the size check here and then kills the render. A quick ffprobe
+        # catches it; on failure fall through to a fresh download.
+        try:
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", str(cached)],
+                capture_output=True, text=True)
+            if probe.returncode == 0:
+                return str(cached)
+        except OSError:
+            # ffprobe missing/unrunnable: can't validate, trust the size check
+            # (the composer needs ffmpeg anyway, so this is unlikely locally).
+            return str(cached)
+        log.warning("Cached audio %s is corrupt, re-downloading.", cached.name)
+        try:
+            cached.unlink()
+        except OSError as e:
+            # OneDrive sync can hold a lock; yt-dlp overwrites the path anyway.
+            log.warning("Could not delete corrupt %s: %s", cached.name, e)
 
     cmd = [
         *_yt_dlp_cmd(),
-        "--format", "bestaudio",
+        # Prefer YouTube's native AAC stream so no transcode happens at all
+        # (plain `bestaudio` usually grabs opus, and re-encoding opus -> m4a at
+        # yt-dlp's default quality was a lossy-to-lossy hit on the music bed).
+        # When only opus exists, --audio-quality 0 re-encodes at best VBR.
+        "--format", "bestaudio[ext=m4a]/bestaudio",
         "--extract-audio",
         "--audio-format", "m4a",
+        "--audio-quality", "0",
         "--output", str(cache_dir / (video_id + ".%(ext)s")),
     ]
     cookies_file = os.environ.get("YOUTUBE_COOKIES_FILE")

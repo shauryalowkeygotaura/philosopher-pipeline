@@ -1780,20 +1780,25 @@ def compose_kinetic_v2(
                 # word-reveal sync is untouched.
                 voice_chain += ",adelay=%d:all=1" % delay_ms
             voice_chain += ",volume=1.0"
-            if intro > 0.05:
-                # Intro bed rides ~2x the under-voice level (capped at 0.85 so
-                # loud tracks don't clip), easing down over the last 0.8s so
-                # the music is already settled when the narration enters.
-                iv = min(0.85, music_volume * 2.0)
-                ramp = min(0.8, intro)
-                t0 = intro - ramp
-                vol_expr = (
-                    "volume='if(lt(t,%.3f),%.3f,"
-                    "if(lt(t,%.3f),%.3f+(%.3f-%.3f)*(t-%.3f)/%.3f,%.3f))':eval=frame"
-                    % (t0, iv, intro, iv, music_volume, iv, t0, ramp, music_volume)
-                )
-            else:
-                vol_expr = "volume=%.3f" % music_volume
+            # Music envelope (user, 2026-06-06: "slowly fading in then bump to
+            # full at the end"): swell from silence across the intro and the
+            # first second of narration up to the under-voice bed level, hold
+            # the bed while the voice speaks, then once the voice finishes
+            # (during the slogan hold) ramp to FULL over 1s for the climax.
+            # The existing 1.2s afade-out still closes the reel.
+            fade_in_end = intro + 1.0
+            voice_end = intro + tts.duration_sec
+            bump = 1.0          # ramp length, seconds
+            full_vol = 1.0      # "full" = same level the voice ran at
+            vol_expr = (
+                "volume='if(lt(t,%.3f),%.3f*t/%.3f,"
+                "if(lt(t,%.3f),%.3f,"
+                "if(lt(t,%.3f),%.3f+(%.3f-%.3f)*(t-%.3f)/%.3f,%.3f)))':eval=frame"
+                % (fade_in_end, music_volume, fade_in_end,
+                   voice_end, music_volume,
+                   voice_end + bump, music_volume, full_vol, music_volume,
+                   voice_end, bump, full_vol)
+            )
             audio_mix = (
                 "[%d:a]%s[voice];"
                 "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,%s,"
@@ -1806,7 +1811,7 @@ def compose_kinetic_v2(
                 "-map", "[vout]",
                 "-map", "[aout]",
                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-                "-c:a", "aac", "-b:a", "192k",
+                "-c:a", "aac", "-b:a", "256k",
                 "-t", "%.3f" % final_total,
                 str(output_path),
             ]
@@ -1817,7 +1822,7 @@ def compose_kinetic_v2(
                 "-map", "[vout]",
                 "-map", "%d:a" % tts_idx,
                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-                "-c:a", "aac", "-b:a", "192k",
+                "-c:a", "aac", "-b:a", "256k",
                 "-t", "%.3f" % final_total,
                 str(output_path),
             ]

@@ -90,7 +90,9 @@ def synthesize_quote(
     out_dir: Path | str,
     voice: str = "daniel",
     slogan: str | None = None,
-    rate: str = "-22%",
+    # -22% read a tiny bit robotic (user, 2026-06-06); -20% keeps the measured
+    # delivery with slightly more natural momentum.
+    rate: str = "-20%",
     volume: str = "+0%",
     hook_word_count: int = 4,
     # Hook->body silence. 0 = continuous (user, 2026-06-05: the 1.2s gap still
@@ -108,7 +110,10 @@ def synthesize_quote(
     sentence_pause_sec: float = 0.55,  # beat after a sentence ends (. ! ?) so it lands
     pause_every_words: int = 0,       # also insert a beat every N words (0 = off)
     drawl_words: int = 3,             # elongate the first N words ("I  wouuuld  ratheer")
-    drawl_factor: float = 1.38,       # how much to stretch them (1.0 = off)
+    # 1.38 was past the ~1.3x point where atempo's phase artifacts start to
+    # sound processed/robotic (user, 2026-06-06: "slowing down makes it a tiny
+    # bit robotic"). 1.30 keeps the drawn-out entrance without the smear.
+    drawl_factor: float = 1.30,       # how much to stretch them (1.0 = off)
     # Legacy ElevenLabs kwargs kept so existing call sites don't break.
     stability: float = 0.55,
     similarity_boost: float = 0.85,
