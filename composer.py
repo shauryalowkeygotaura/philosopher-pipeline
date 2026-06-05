@@ -1259,18 +1259,22 @@ def _render_v2_brand_card(philosopher, portrait_path, output_path, font_path,
     img.save(output_path, "PNG")
 
 
-def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=False):
+def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=False,
+                          overlay_only=False):
     """Beat 4: letterbox image band + red italic phrase.
 
     Short phrases sit in the black strip BELOW the band. Long phrases (that would
     overflow one line at full size) are auto-shrunk, wrapped, and laid OVER the
     top of the image with a dark scrim so they stay readable (user: 'sometimes i
-    cant read it ... put the new text on top of the picture instead of bottom')."""
+    cant read it ... put the new text on top of the picture instead of bottom').
+
+    overlay_only=True returns just the transparent text layer (no image), so the
+    caller can animate the picture underneath it without moving the text."""
     img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
     band_top = V2_BODY_BAND_TOP
     band_h = V2_BODY_BAND_HEIGHT
 
-    if image_path and Path(image_path).exists():
+    if image_path and Path(image_path).exists() and not overlay_only:
         try:
             p = Image.open(image_path).convert("RGB")
             pw, ph = p.size
@@ -1285,6 +1289,12 @@ def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=F
             img.paste(p_cropped, (0, band_top))
         except Exception as e:
             log.warning("Body band image failed: %s", e)
+
+    if not text:
+        # Image-only base layer for the animated-underlay path: the static
+        # text rides in a separate overlay_only PNG composited on top.
+        img.save(output_path, "PNG")
+        return
 
     overlay = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -1329,14 +1339,40 @@ def _render_v2_body_frame(image_path, text, output_path, font_path, is_bracket=F
         draw.multiline_text((cx, top_y), wrapped, font=font,
                             fill=KINETIC_RED + (255,), anchor="ma", align="center", spacing=spacing)
 
-    final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    final.save(output_path, "PNG")
+    if overlay_only:
+        overlay.save(output_path, "PNG")
+    else:
+        final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+        final.save(output_path, "PNG")
 
 
-def _render_v2_slogan_card(slogan_text, image_path, output_path, font_path):
-    """Beat 5: BIG mixed-size red overlay on full-frame darkened image."""
+def _render_v2_slogan_base(image_path, output_path):
+    """Beat 5 base layer: full-frame cover-cropped image, UNdimmed. The
+    overlay_only slogan card carries the dimming as a 140-alpha scrim, so
+    dimming here too would double-darken the climax frame."""
     img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
     if image_path and Path(image_path).exists():
+        try:
+            bg = Image.open(image_path).convert("RGB")
+            bw, bh = bg.size
+            scale = max(REEL_WIDTH / bw, REEL_HEIGHT / bh)
+            bg = bg.resize((int(bw * scale), int(bh * scale)), Image.LANCZOS)
+            left = (bg.width - REEL_WIDTH) // 2
+            top = (bg.height - REEL_HEIGHT) // 2
+            img = bg.crop((left, top, left + REEL_WIDTH, top + REEL_HEIGHT))
+        except Exception as e:
+            log.warning("Slogan base bg failed: %s", e)
+    img.save(output_path, "PNG")
+
+
+def _render_v2_slogan_card(slogan_text, image_path, output_path, font_path, overlay_only=False):
+    """Beat 5: BIG mixed-size red overlay on full-frame darkened image.
+
+    overlay_only=True returns just the transparent text layer plus a full-frame
+    dark scrim (replacing the baked image dimming), so the caller can animate the
+    picture underneath without moving the text."""
+    img = Image.new("RGB", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0))
+    if image_path and Path(image_path).exists() and not overlay_only:
         try:
             from PIL import ImageEnhance
             bg = Image.open(image_path).convert("RGB")
@@ -1352,6 +1388,11 @@ def _render_v2_slogan_card(slogan_text, image_path, output_path, font_path):
             log.warning("Slogan card bg failed: %s", e)
 
     overlay = Image.new("RGBA", (REEL_WIDTH, REEL_HEIGHT), (0, 0, 0, 0))
+    if overlay_only:
+        # The baked path dims the image directly (0.45 brightness); here the
+        # image is animated underneath, so carry the dimming as a full-frame
+        # scrim baked into the (static) overlay instead.
+        ImageDraw.Draw(overlay).rectangle([0, 0, REEL_WIDTH, REEL_HEIGHT], fill=(0, 0, 0, 140))
     draw = ImageDraw.Draw(overlay)
 
     lines = _v2_split_slogan(slogan_text)
@@ -1381,8 +1422,11 @@ def _render_v2_slogan_card(slogan_text, image_path, output_path, font_path):
         draw.text((cx, y), upper, font=f, fill=KINETIC_RED + (255,), anchor="mt")
         y += size + 12
 
-    final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
-    final.save(output_path, "PNG")
+    if overlay_only:
+        overlay.save(output_path, "PNG")
+    else:
+        final = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
+        final.save(output_path, "PNG")
 
 
 _V2_STOPWORDS = {
@@ -1426,12 +1470,15 @@ def _v2_split_slogan(slogan):
     return out
 
 
-def _v2_kenburns_chain(idx, length_sec):
+def _v2_kenburns_chain(idx, length_sec, out=None):
     """Per-beat motion for compose_kinetic_v2: a slow pull-back (Ken Burns
     zoom-OUT) so each slide 'extends' / settles instead of sitting dead-still
     (user, 2026-06-05). The beat starts ~7% enlarged and eases to the full frame
     across its duration; since zoom only ever decreases toward 1.0 (full frame),
     no black edge is revealed.
+
+    `out` names the output pad; defaults to v{idx}. Needed since static-text
+    overlays became extra ffmpeg inputs, so beat number != input index.
 
     Implementation note: the zoom is driven by zoompan's `on` (output-frame
     index), not crop's `t`. crop evaluates w/h once at config time, so a t-based
@@ -1452,7 +1499,7 @@ def _v2_kenburns_chain(idx, length_sec):
         "zoompan=z='%s':d=1:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
         ":s=1080x1920:fps=30,setsar=1,format=yuv420p"
     ) % z
-    return "[%d:v]%s[v%d]" % (idx, chain, idx)
+    return "[%d:v]%s[%s]" % (idx, chain, out if out is not None else "v%d" % idx)
 
 
 def compose_kinetic_v2(
@@ -1547,6 +1594,9 @@ def compose_kinetic_v2(
 
     with tempfile.TemporaryDirectory() as tmp:
         tmpd = Path(tmp)
+        # (base_png, duration, static_text_png_or_None). When the third slot is
+        # set, the base gets the Ken Burns pull-back and the text PNG is
+        # composited on top WITHOUT motion (picture moves, words stay put).
         beat_inputs = []
 
         # Hook: group into 2-word phrases (matches reference reel's
@@ -1576,15 +1626,15 @@ def compose_kinetic_v2(
                 dur = hook_phrases[pi + 1][1] - ws
             else:
                 dur = hook_end - ws
-            beat_inputs.append((png, max(0.4, dur)))
+            beat_inputs.append((png, max(0.4, dur), None))
 
         breath_png = tmpd / "breath.png"
         _render_v2_black(str(breath_png))
-        beat_inputs.append((breath_png, max(0.2, breath_end - hook_end)))
+        beat_inputs.append((breath_png, max(0.2, breath_end - hook_end), None))
 
         brand_png = tmpd / "brand.png"
         _render_v2_brand_card(philosopher, image_paths[0], str(brand_png), font_path, subtitle=brand_subtitle)
-        beat_inputs.append((brand_png, max(0.5, brand_end - breath_end)))
+        beat_inputs.append((brand_png, max(0.5, brand_end - breath_end), None))
 
         # Beat 4: PHRASE reveals (not per-word). User feedback: "word by word
         # cuts feels cut off" — 7-15 PNG cuts at 0.5-0.7s each reads as
@@ -1622,11 +1672,14 @@ def compose_kinetic_v2(
 
         if phrases:
             for bi, (text, ws, we) in enumerate(phrases):
-                png = tmpd / ("body_p_%d.png" % bi)
+                base_png = tmpd / ("body_base_%d.png" % bi)
+                text_png = tmpd / ("body_text_%d.png" % bi)
                 img_idx = (bi * len(body_pool)) // max(1, len(phrases))
                 body_image = body_pool[min(img_idx, len(body_pool) - 1)]
                 is_last = (bi == len(phrases) - 1)
-                _render_v2_body_frame(body_image, text, str(png), font_path, is_bracket=is_last)
+                _render_v2_body_frame(body_image, None, str(base_png), font_path)
+                _render_v2_body_frame(body_image, text, str(text_png), font_path,
+                                      is_bracket=is_last, overlay_only=True)
                 if bi + 1 < len(phrases):
                     dur = phrases[bi + 1][1] - ws
                 else:
@@ -1634,23 +1687,45 @@ def compose_kinetic_v2(
                     # doesn't camp on screen for 3s+ when there's silence
                     # between body end and slogan start.
                     dur = min(1.8, body_end - ws)
-                beat_inputs.append((png, max(0.6, dur)))
+                beat_inputs.append((base_png, max(0.6, dur), text_png))
         else:
             body_label = _v2_pick_content_word(quote_words[-5:], fallback="wisdom")
-            png = tmpd / "body_fallback.png"
-            _render_v2_body_frame(body_pool[0], body_label, str(png), font_path, is_bracket=True)
-            beat_inputs.append((png, body_duration))
+            base_png = tmpd / "body_fallback_base.png"
+            text_png = tmpd / "body_fallback_text.png"
+            _render_v2_body_frame(body_pool[0], None, str(base_png), font_path)
+            _render_v2_body_frame(body_pool[0], body_label, str(text_png), font_path,
+                                  is_bracket=True, overlay_only=True)
+            beat_inputs.append((base_png, body_duration, text_png))
 
-        slogan_png = tmpd / "slogan.png"
         slogan_image = image_paths[-1]
-        _render_v2_slogan_card(slogan, slogan_image, str(slogan_png), font_path)
-        beat_inputs.append((slogan_png, max(0.5, total - body_end)))
+        slogan_base_png = tmpd / "slogan_base.png"
+        slogan_text_png = tmpd / "slogan_text.png"
+        _render_v2_slogan_base(slogan_image, str(slogan_base_png))
+        _render_v2_slogan_card(slogan, slogan_image, str(slogan_text_png), font_path,
+                               overlay_only=True)
+        # The slogan beat absorbs whatever the timeline still owes (total minus
+        # the concat position so far), NOT total - body_end: the trailing body
+        # phrase is capped at 1.8s, and without repaying that shaved time here
+        # the video track ends ~2s before the voice finishes the slogan.
+        elapsed = sum(d for _, d, _ in beat_inputs)
+        beat_inputs.append((slogan_base_png, max(0.5, total - elapsed), slogan_text_png))
 
         cmd = ["ffmpeg", "-y"]
-        for png, dur in beat_inputs:
+        # Static text overlays are extra inputs, so input index != beat index.
+        beat_streams = []  # (base_input_idx, text_input_idx_or_None, dur)
+        n_inputs = 0
+        for png, dur, text_png in beat_inputs:
             cmd += ["-loop", "1", "-t", "%.3f" % dur, "-framerate", "30", "-i", str(png)]
+            base_idx = n_inputs
+            n_inputs += 1
+            text_idx = None
+            if text_png is not None:
+                cmd += ["-loop", "1", "-t", "%.3f" % dur, "-framerate", "30", "-i", str(text_png)]
+                text_idx = n_inputs
+                n_inputs += 1
+            beat_streams.append((base_idx, text_idx, dur))
         cmd += ["-i", str(tts.audio_path)]
-        tts_idx = len(beat_inputs)
+        tts_idx = n_inputs
         music_idx = None
         if music_path and Path(music_path).exists():
             cmd += ["-stream_loop", "-1", "-i", str(music_path)]
@@ -1658,10 +1733,17 @@ def compose_kinetic_v2(
 
         n = len(beat_inputs)
         # Slow pull-back on every beat so the slides move (user, 2026-06-05).
-        scale_chains = [
-            _v2_kenburns_chain(i, beat_inputs[i][1])
-            for i in range(n)
-        ]
+        # Beats with a text layer get the pull-back on the PICTURE only; the
+        # text PNG is composited on top without motion so the words stay put.
+        scale_chains = []
+        for bi, (base_idx, text_idx, dur) in enumerate(beat_streams):
+            if text_idx is None:
+                scale_chains.append(_v2_kenburns_chain(base_idx, dur, out="v%d" % bi))
+            else:
+                scale_chains.append(_v2_kenburns_chain(base_idx, dur, out="vb%d" % bi))
+                scale_chains.append(
+                    "[vb%d][%d:v]overlay=0:0:format=auto,format=yuv420p[v%d]"
+                    % (bi, text_idx, bi))
         concat_chain = "".join("[v%d]" % i for i in range(n)) + "concat=n=" + str(n) + ":v=1:a=0[vout]"
 
         if music_idx is not None:
