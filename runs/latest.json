@@ -1,15 +1,15 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-06-05T10:31:40Z",
+  "ts": "2026-06-05T14:11:47Z",
   "mode": "kinetic",
   "status": "ok",
-  "summary": "Generated 1 kinetic reel(s) (Jean-Paul Sartre), uploaded 1",
+  "summary": "Generated 1 kinetic reel(s) (Blaise Pascal), uploaded 1",
   "metrics": {
     "generated": 1,
     "uploaded": 1,
     "style": "kinetic",
     "philosophers": [
-      "Jean-Paul Sartre"
+      "Blaise Pascal"
     ]
   },
   "budgets": {
