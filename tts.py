@@ -93,7 +93,11 @@ def synthesize_quote(
     rate: str = "-22%",
     volume: str = "+0%",
     hook_word_count: int = 4,
-    brand_gap_sec: float = 1.2,
+    # Hook->body silence. 0 = continuous (user, 2026-06-05: the 1.2s gap still
+    # read as an awkward "I would rather <pause>"). The composer's brand card is a
+    # fixed 1.6s hold (composer.py: brand_end = breath_end + 1.6), so it survives
+    # a 0 gap by overlaying the body's opening instead of sitting in dead air.
+    brand_gap_sec: float = 0.0,
     slogan_gap_sec: float = 1.2,
     cinematic: bool = True,
     pitch_semitones: float = PITCH_SEMITONES,
