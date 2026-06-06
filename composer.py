@@ -1780,6 +1780,11 @@ def compose_kinetic_v2(
                 # word-reveal sync is untouched.
                 voice_chain += ",adelay=%d:all=1" % delay_ms
             voice_chain += ",volume=1.0"
+            # Pad the voice with silence to the full reel length BEFORE it
+            # splits into mix + sidechain key: sidechaincompress ends when
+            # EITHER input ends, so an unpadded key truncated the music at
+            # voice-end and silently dropped the end bump + fade-out tail.
+            voice_chain += ",apad=whole_dur=%.3f" % final_total
             # Music envelope (user, 2026-06-06: "slowly fading in then bump to
             # full at the end"): swell from silence across the intro and the
             # first second of narration up to the under-voice bed level, hold
@@ -1789,7 +1794,13 @@ def compose_kinetic_v2(
             fade_in_end = intro + 1.0
             voice_end = intro + tts.duration_sec
             bump = 1.0          # ramp length, seconds
-            full_vol = 1.0      # "full" = same level the voice ran at
+            # amix scales every input by 1/2 while both are active, and the
+            # apad'd voice now stays "active" (as silence) through the tail.
+            # 2.0 pre-mix would land at true full scale after the mix (1.0
+            # played the climax 6 dB shy of the pre-apad renders), but a
+            # 0 dBFS-mastered track then peaks at exactly full scale and AAC
+            # inter-sample overs clip. 1.8 keeps ~1 dB of true-peak headroom.
+            full_vol = 1.8
             vol_expr = (
                 "volume='if(lt(t,%.3f),%.3f*t/%.3f,"
                 "if(lt(t,%.3f),%.3f,"
@@ -1799,12 +1810,30 @@ def compose_kinetic_v2(
                    voice_end + bump, music_volume, full_vol, music_volume,
                    voice_end, bump, full_vol)
             )
+            # Reference-informed bed treatment (@wisdomofhidgon profile,
+            # 2026-06-06): its music sits ~25 dB under the voice, emerges in
+            # the voice's pauses (= sidechain ducking, not a static volume),
+            # and is spectrally DARK (centroid ~660 Hz vs our full-range
+            # tracks). So: EQ-carve the bed away from the voice band
+            # (highpass rumble, lowpass the air, dip ~2.2 kHz where the
+            # narration centroid lives), then duck it against the voice with
+            # sidechaincompress. In speech it tucks under; in every breath and
+            # after the voice ends (the bump) it swells back up on its own.
+            bed_eq = ("highpass=f=70,lowpass=f=8000,"
+                      "equalizer=f=2200:t=q:w=1.2:g=-2.5")
+            duck = "sidechaincompress=threshold=0.05:ratio=4:attack=20:release=400"
             audio_mix = (
-                "[%d:a]%s[voice];"
-                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,%s,"
-                "afade=t=out:st=%.2f:d=1.2[bg];"
-                "[voice][bg]amix=inputs=2:duration=longest:dropout_transition=0[aout]"
-            ) % (tts_idx, voice_chain, music_idx, vol_expr, max(0.5, final_total - 1.2))
+                "[%d:a]%s,asplit=2[voice][vkey];"
+                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,"
+                "%s,%s,afade=t=out:st=%.2f:d=1.2[bgpre];"
+                "[bgpre][vkey]%s[bg];"
+                # alimiter guarantees a -0.9 dB true ceiling at the climax no
+                # matter how hot the source track was mastered (several of the
+                # 30 rotation songs decode past 1.0 and clipped the AAC encode).
+                "[voice][bg]amix=inputs=2:duration=longest:dropout_transition=0,"
+                "alimiter=limit=0.9:attack=5:release=100:level=0[aout]"
+            ) % (tts_idx, voice_chain, music_idx, bed_eq, vol_expr,
+                 max(0.5, final_total - 1.2), duck)
             filter_complex = ";".join(scale_chains) + ";" + concat_chain + ";" + audio_mix
             cmd += [
                 "-filter_complex", filter_complex,
