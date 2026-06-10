@@ -169,3 +169,46 @@ def test_compose_slideshow_empty_raises(tmp_path, test_audio):
     out = str(tmp_path / "x.mp4")
     with pytest.raises(ValueError):
         compose_slideshow([], "Q", "A", test_audio, out, FONT_PATH)
+
+
+# _music_entry_offset tests
+
+from composer import _music_entry_offset
+
+
+@pytest.fixture
+def quiet_intro_song(tmp_path):
+    """6s of silence then 4s of tone — models a song with a quiet buildup."""
+    path = str(tmp_path / "quiet_intro.m4a")
+    subprocess.run([
+        "ffmpeg", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+        "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
+        "-filter_complex",
+        "[0:a]atrim=duration=6[s];[1:a]atrim=duration=4,volume=0.8[t];[s][t]concat=n=2:v=0:a=1[out]",
+        "-map", "[out]", "-c:a", "aac", path, "-y",
+    ], check=True, capture_output=True)
+    return path
+
+
+@pytest.fixture
+def hot_open_song(tmp_path):
+    """Tone from the very first sample — no skip should be applied."""
+    path = str(tmp_path / "hot_open.m4a")
+    subprocess.run([
+        "ffmpeg", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
+        "-af", "volume=0.8", "-t", "8", "-c:a", "aac", path, "-y",
+    ], check=True, capture_output=True)
+    return path
+
+
+def test_music_entry_offset_skips_quiet_intro(quiet_intro_song):
+    offset = _music_entry_offset(quiet_intro_song)
+    assert 4.5 <= offset <= 6.5, "expected the ~6s silent buildup to be skipped, got %s" % offset
+
+
+def test_music_entry_offset_zero_for_hot_open(hot_open_song):
+    assert _music_entry_offset(hot_open_song) == 0.0
+
+
+def test_music_entry_offset_missing_file_returns_zero(tmp_path):
+    assert _music_entry_offset(str(tmp_path / "nope.m4a")) == 0.0

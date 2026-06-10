@@ -13,6 +13,7 @@ Tuned for IG Reels algorithm:
 - Quote uses serif (Playfair); attribution uses lighter sans-serif (Inter) when available
 """
 import logging
+import re
 import subprocess
 import tempfile
 from io import BytesIO
@@ -1502,6 +1503,91 @@ def _v2_kenburns_chain(idx, length_sec, out=None):
     return "[%d:v]%s[%s]" % (idx, chain, out if out is not None else "v%d" % idx)
 
 
+def _music_entry_offset(music_path, max_scan_sec=75.0, rel_db=8.0, min_skip_sec=1.5):
+    """Seconds to skip into the track so the bed is audible from frame one.
+
+    Several rotation songs open with a long quiet buildup (GCdwKhTtNNw
+    measures -57 dB over its first 6s vs -11 dB mid-song). Under the bed
+    volume + EQ carve + sidechain ducking that intro is inaudible, so the
+    music seemed to arrive seconds late on those reels. Scan the opening
+    `max_scan_sec` with ebur128 and return the first moment the momentary
+    loudness comes within `rel_db` LU of the scanned peak. Offsets under
+    `min_skip_sec` return 0.0 (track is already hot at the top), and any
+    scan failure returns 0.0 so a render never blocks on this analysis.
+    """
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-nostats", "-t", "%.1f" % max_scan_sec,
+             "-i", str(music_path), "-filter_complex", "ebur128", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=120,
+        )
+        points = []
+        for line in (result.stderr or "").splitlines():
+            m = re.search(r"t:\s*([0-9.]+)\s+.*?M:\s*(-?[0-9.]+)", line)
+            if m:
+                points.append((float(m.group(1)), float(m.group(2))))
+        if not points:
+            return 0.0
+        peak = max(loud for _, loud in points)
+        threshold = peak - rel_db
+        for t, loud in points:
+            if loud >= threshold:
+                # M integrates the previous 400ms; back off so the entry
+                # transient itself survives the trim.
+                offset = max(0.0, t - 0.4)
+                return offset if offset >= min_skip_sec else 0.0
+        return 0.0
+    except Exception as e:
+        log.warning("music entry scan failed for %s: %s", music_path, e)
+        return 0.0
+
+
+def _music_entry_offset(music_path, max_scan_sec=75.0, rel_db=8.0, min_skip_sec=1.5):
+    """Seconds to skip into the track so the bed is audible from frame one.
+
+    Several rotation songs open with a long quiet buildup (GCdwKhTtNNw
+    measures -57 dB over its first 6s vs -11 dB mid-song). Under the bed
+    volume + EQ carve + sidechain ducking that intro is inaudible, so the
+    music seemed to arrive seconds late on those reels. Scan the opening
+    `max_scan_sec` with ebur128 and return the first moment the momentary
+    loudness comes within `rel_db` LU of the scanned peak. Offsets under
+    `min_skip_sec` return 0.0 (track is already hot at the top), and any
+    scan failure returns 0.0 so a render never blocks on this analysis.
+    """
+    music_path = Path(music_path)
+    if not music_path.is_file():
+        return 0.0
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-nostats", "-t", "%.1f" % max_scan_sec,
+             "-i", str(music_path), "-filter_complex", "ebur128", "-f", "null", "-"],
+            capture_output=True, text=True, timeout=120,
+        )
+        points = []
+        for line in (result.stderr or "").splitlines():
+            m = re.search(r"t:\s*([0-9.]+)\s+.*?M:\s*(-?[0-9.]+)", line)
+            if not m:
+                continue
+            try:
+                points.append((float(m.group(1)), float(m.group(2))))
+            except ValueError:
+                continue
+        if not points:
+            return 0.0
+        peak = max(loud for _, loud in points)
+        threshold = peak - rel_db
+        for t, loud in points:
+            if loud >= threshold:
+                # M integrates the previous 400ms; back off so the entry
+                # transient itself survives the trim.
+                offset = max(0.0, t - 0.4)
+                return offset if offset >= min_skip_sec else 0.0
+        return 0.0
+    except (OSError, subprocess.SubprocessError) as e:
+        log.warning("music entry scan failed for %s: %s", music_path, e)
+        return 0.0
+
+
 def compose_kinetic_v2(
     image_paths,
     quote,
@@ -1561,6 +1647,12 @@ def compose_kinetic_v2(
     # beat prepended to the concat shifts every visual by `intro` seconds and
     # adelay shifts the voice by the same amount, so word-reveal sync holds.
     has_music = bool(music_path and Path(music_path).exists())
+    # Skip a quiet intro/buildup at the top of the track so the bed is
+    # audible from the first frame (fixes "music arrives late" on songs
+    # that open near-silent).
+    music_skip = _music_entry_offset(music_path) if has_music else 0.0
+    if music_skip > 0:
+        log.info("Music opens quiet; skipping first %.1fs of the track", music_skip)
     intro = max(0.0, music_intro_sec) if has_music else 0.0
     final_total = total + intro
 
@@ -1822,9 +1914,16 @@ def compose_kinetic_v2(
             bed_eq = ("highpass=f=70,lowpass=f=8000,"
                       "equalizer=f=2200:t=q:w=1.2:g=-2.5")
             duck = "sidechaincompress=threshold=0.05:ratio=4:attack=20:release=400"
+            # atrim (not input -ss) drops the quiet opening: -ss interacts
+            # badly with -stream_loop -1 (loop restarts ignore the seek and
+            # timestamps go non-monotonic), while trimming the decoded
+            # stream is deterministic.
+            music_head = ""
+            if music_skip > 0:
+                music_head = "atrim=start=%.2f,asetpts=PTS-STARTPTS," % music_skip
             audio_mix = (
                 "[%d:a]%s,asplit=2[voice][vkey];"
-                "[%d:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,"
+                "[%d:a]%saformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo,"
                 "%s,%s,afade=t=out:st=%.2f:d=1.2[bgpre];"
                 "[bgpre][vkey]%s[bg];"
                 # alimiter guarantees a -0.9 dB true ceiling at the climax no
@@ -1832,7 +1931,7 @@ def compose_kinetic_v2(
                 # 30 rotation songs decode past 1.0 and clipped the AAC encode).
                 "[voice][bg]amix=inputs=2:duration=longest:dropout_transition=0,"
                 "alimiter=limit=0.9:attack=5:release=100:level=0[aout]"
-            ) % (tts_idx, voice_chain, music_idx, bed_eq, vol_expr,
+            ) % (tts_idx, voice_chain, music_idx, music_head, bed_eq, vol_expr,
                  max(0.5, final_total - 1.2), duck)
             filter_complex = ";".join(scale_chains) + ";" + concat_chain + ";" + audio_mix
             cmd += [

@@ -116,6 +116,10 @@ jobs:
         env:
           INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
           INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+          # Without this every reel ships the hardcoded slogan fallback
+          # ("Truth is found alone in the dark") — fetch_slogan() can only
+          # call Groq when the key is in the env (2026-06-10 fix).
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/cookies.txt
           # Ship the kinetic v2 letterbox reels with the deep "elder sage"
           # narration (tts.py PITCH_SEMITONES -4.5, ~82 Hz). Remove this line
