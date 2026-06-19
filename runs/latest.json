@@ -1,6 +1,6 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-06-19T08:54:33Z",
+  "ts": "2026-06-19T11:02:36Z",
   "mode": "kinetic",
   "status": "degraded",
   "summary": "No reels generated (no eligible philosopher / asset fetch failed)",
