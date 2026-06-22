@@ -98,6 +98,12 @@ KINETIC_MUSIC_VOLUME = float(os.getenv("KINETIC_MUSIC_VOLUME", "0.30"))
 # Music-only lead-in seconds before the narration starts (black screen, music
 # ~2x its under-voice level, ducking down as the voice enters). 0 disables.
 KINETIC_INTRO = float(os.getenv("KINETIC_INTRO", "1.5"))
+# How many alternate songs to try when a YouTube audio download fails (e.g. a
+# track went private/region-locked, or yt-dlp's extractor hiccups). Before this,
+# a single dead video in --single mode produced "No reels generated" and an
+# empty run (observed 2026-05-30). The failed URL is blacklisted by
+# _download_audio, so retries pick a different vibe-matched track.
+SONG_RETRY_LIMIT = int(os.getenv("SONG_RETRY_LIMIT", "4"))
 
 # Hooks rotate by post_count so the same opening line never repeats per
 # philosopher, which avoids the IG "duplicate caption" downranking.
@@ -249,8 +255,34 @@ def main(upload_now=True, single=False, generate_only=False):
 
         log.info("  Downloading audio...")
         audio_path = _download_audio(song_url, CACHE_AUDIO, state)
+        # A single unavailable video used to abandon the whole philosopher (and,
+        # in --single mode, the entire run). Retry with other vibe-matched songs;
+        # the just-failed URL is already in used_songs_this_run so match_song
+        # won't hand it back.
+        retries = 0
+        while not audio_path and retries < SONG_RETRY_LIMIT:
+            retries += 1
+            log.warning("  Audio download failed (%s); trying another song (%d/%d)...",
+                        song_url, retries, SONG_RETRY_LIMIT)
+            try:
+                song_url = match_song(
+                    philosopher, quote,
+                    songs=available_songs,
+                    used_in_run=used_songs_this_run,
+                    used_for_philosopher=phil_state["used_songs"],
+                )
+            except Exception as e:
+                log.warning("  Song re-match failed for %s: %s", philosopher, e)
+                break
+            if not song_url or song_url in used_songs_this_run:
+                log.warning("  No fresh song left for %s.", philosopher)
+                break
+            used_songs_this_run.append(song_url)
+            log.info("  Song (retry %d): %s", retries, song_url)
+            audio_path = _download_audio(song_url, CACHE_AUDIO, state)
         if not audio_path:
-            log.warning("  Audio download failed for %s, skipping.", philosopher)
+            log.warning("  Audio download failed for %s after %d retr%s, skipping.",
+                        philosopher, retries, "y" if retries == 1 else "ies")
             continue
         log.info("  Audio: %s", audio_path)
 
