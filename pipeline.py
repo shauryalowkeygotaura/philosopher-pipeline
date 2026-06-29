@@ -43,6 +43,8 @@ from composer import (
     compose_slideshow, compose_slideshow_beat_synced,
     compose_kinetic_letterbox, compose_kinetic_v2,
 )
+from broll_fetcher import fetch_broll, derive_broll_theme
+from broll_compose import compose_broll_reel
 from scheduler import schedule_uploads
 from uploader import upload_reel
 import bandit
@@ -64,6 +66,7 @@ OUTPUT_DIR = BASE_DIR / "output"
 CACHE_PHOTOS = BASE_DIR / "cache" / "photos"
 CACHE_PAINTINGS = BASE_DIR / "cache" / "paintings"
 CACHE_AUDIO = BASE_DIR / "cache" / "audio"
+CACHE_BROLL = BASE_DIR / "cache" / "broll"
 FONT_PATH = BASE_DIR / "fonts" / "PlayfairDisplay-Regular.ttf"
 GOTHIC_FONT_PATH = BASE_DIR / "fonts" / "UnifrakturMaguntia-Book.ttf"
 
@@ -84,10 +87,14 @@ MIN_CUTS = int(os.getenv("MIN_CUTS", "16"))
 # Color grade applied uniformly across every clip so disparate paintings
 # read as one cohesive reel: vintage | sepia | noir | cool | warm | off.
 COLOR_GRADE = os.getenv("COLOR_GRADE", "vintage").strip()
-# STYLE = "capcut" (fast-cut 7s, default) or "kinetic" (letterbox + word-by-word
-# red typography, 28s, modeled on @wisdomofhidgon DIA_e3dI9tq).
+# STYLE = "capcut" (fast-cut 7s, default), "kinetic" (letterbox + word-by-word
+# red typography, 28s, modeled on @wisdomofhidgon DIA_e3dI9tq), or "broll"
+# (quote over looping keyless motion footage; see broll_fetcher/broll_compose).
 STYLE = os.getenv("STYLE", "capcut").strip().lower()
-REEL_DURATION = 28.0 if STYLE == "kinetic" else 7.0
+REEL_DURATION = 28.0 if STYLE == "kinetic" else (15.0 if STYLE == "broll" else 7.0)
+# B-roll style: how many keyless clips to fetch per reel, and music level.
+BROLL_CLIPS = int(os.getenv("BROLL_CLIPS", "4"))
+BROLL_MUSIC_VOLUME = float(os.getenv("BROLL_MUSIC_VOLUME", "0.7"))
 # Kinetic v2 narration voice. Daniel = deep BBC-style British, matches the
 # @wisdomofhidgon reference. Override via Doppler for A/B tests.
 KINETIC_VOICE = os.getenv("KINETIC_VOICE", "daniel").strip().lower()
@@ -158,7 +165,7 @@ def _build_caption(quote, philosopher, hook, bio, slug_tag):
 
 
 def main(upload_now=True, single=False, generate_only=False):
-    for d in [OUTPUT_DIR, CACHE_PHOTOS, CACHE_PAINTINGS, CACHE_AUDIO]:
+    for d in [OUTPUT_DIR, CACHE_PHOTOS, CACHE_PAINTINGS, CACHE_AUDIO, CACHE_BROLL]:
         d.mkdir(parents=True, exist_ok=True)
 
     if not FONT_PATH.exists():
@@ -298,7 +305,35 @@ def main(upload_now=True, single=False, generate_only=False):
         )
         slogan = None
         try:
-            if STYLE == "kinetic":
+            if STYLE == "broll":
+                theme = derive_broll_theme(quote, philosopher)
+                log.info("  B-roll theme: %s", theme)
+                # No cross-run "used" set: phil_state is a deepcopy (not persisted),
+                # and atmospheric B-roll repeating across reels is fine for brand
+                # consistency. fetch_broll caches clips on disk by URL hash, so
+                # re-runs hit the cache instead of re-downloading.
+                broll_clips = fetch_broll(theme, BROLL_CLIPS, CACHE_BROLL)
+                if broll_clips:
+                    compose_broll_reel(
+                        broll_clips, quote, philosopher,
+                        audio_path, mp4_path, str(FONT_PATH),
+                        reel_duration=REEL_DURATION,
+                        music_volume=BROLL_MUSIC_VOLUME,
+                    )
+                else:
+                    # No footage matched this theme: still ship a reel using the
+                    # already-fetched images via the proven beat-synced path.
+                    log.warning("  No B-roll for theme %r; falling back to beat-synced slideshow.", theme)
+                    compose_slideshow_beat_synced(
+                        frames, quote, philosopher,
+                        audio_path, mp4_path, str(FONT_PATH),
+                        reel_duration=REEL_DURATION,
+                        min_cuts=MIN_CUTS,
+                        seamless_loop=False,
+                        color_grade=COLOR_GRADE,
+                        overlay_font_path=str(GOTHIC_FONT_PATH) if GOTHIC_FONT_PATH.exists() else None,
+                    )
+            elif STYLE == "kinetic":
                 slogan = fetch_slogan(quote, philosopher)
                 log.info("  Slogan: %s", slogan)
                 compose_kinetic_v2(
