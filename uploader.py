@@ -82,13 +82,23 @@ def _get_client():
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
-def upload_reel(mp4_path: str, caption: str, jpg_path: str | None = None) -> bool:
+def upload_reel(
+    mp4_path: str,
+    caption: str,
+    jpg_path: str | None = None,
+    meta: dict | None = None,
+) -> bool:
     """Upload a Reel to Instagram.
 
     Args:
         mp4_path: Absolute path to the MP4 file.
         caption:  Post caption / description.
         jpg_path: Optional path to a .jpg thumbnail image.
+        meta:     Optional dict of arm metadata (philosopher / hook / slogan /
+                  slug / style) recorded alongside the posted media id so the
+                  self-improving bandit loop can attribute later insights back
+                  to the caption hook that earned them. Purely additive; has no
+                  effect on the upload itself.
 
     Returns:
         True on success.
@@ -99,5 +109,31 @@ def upload_reel(mp4_path: str, caption: str, jpg_path: str | None = None) -> boo
     """
     cl = _get_client()
     thumbnail = Path(jpg_path) if jpg_path and Path(jpg_path).exists() else None
-    cl.clip_upload(Path(mp4_path), caption=caption, thumbnail=thumbnail)
+    media = cl.clip_upload(Path(mp4_path), caption=caption, thumbnail=thumbnail)
+    _record_to_ledger(media, mp4_path, caption, meta)
     return True
+
+
+def _record_to_ledger(media, mp4_path: str, caption: str, meta: dict | None) -> None:
+    """Capture the posted media id (Phase 1 of the self-improving loop).
+
+    Best-effort and fully isolated: a ledger/import failure, or a media object
+    without a valid numeric id (e.g. a test double), is swallowed so it can
+    never affect the upload result. Only a whitelist-validated id is stored.
+    """
+    try:
+        import ledger as _ledger  # deferred so module import stays dependency-free
+
+        meta = meta or {}
+        _ledger.record_upload(
+            media,
+            mp4_path=mp4_path,
+            caption=caption,
+            philosopher=meta.get("philosopher"),
+            hook=meta.get("hook"),
+            slogan=meta.get("slogan"),
+            slug=meta.get("slug"),
+            style=meta.get("style"),
+        )
+    except Exception:
+        return

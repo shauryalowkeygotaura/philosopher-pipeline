@@ -45,6 +45,7 @@ from composer import (
 )
 from scheduler import schedule_uploads
 from uploader import upload_reel
+import bandit
 import run_metrics
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
@@ -295,6 +296,7 @@ def main(upload_now=True, single=False, generate_only=False):
             REEL_DURATION,
             STYLE if STYLE == "kinetic" else ("beat-synced" if USE_BEAT_SYNC else "fast-cut"),
         )
+        slogan = None
         try:
             if STYLE == "kinetic":
                 slogan = fetch_slogan(quote, philosopher)
@@ -343,7 +345,10 @@ def main(upload_now=True, single=False, generate_only=False):
 
         bio = get_bio(philosopher)
         slug_tag = slug.replace("-", "")[:20]
-        hook = HOOKS[phil_state["post_count"] % len(HOOKS)]
+        # Self-improving loop: identical to HOOKS[post_count % len(HOOKS)] until
+        # the ledger has engagement insights for this hook set, then the bandit
+        # biases toward the best-performing hook (bandit.pick_hook).
+        hook = bandit.pick_hook(philosopher, phil_state["post_count"], HOOKS)
         caption = _build_caption(quote, philosopher, hook, bio, slug_tag)
 
         generated.append({
@@ -351,6 +356,9 @@ def main(upload_now=True, single=False, generate_only=False):
             "mp4_path": mp4_path,
             "jpg_path": cover_jpg,
             "caption": caption,
+            "hook": hook,
+            "slogan": slogan,
+            "slug": slug,
         })
         log.info("  Reel ready: %s", mp4_path)
 
@@ -370,7 +378,16 @@ def main(upload_now=True, single=False, generate_only=False):
         for reel in generated:
             log.info("  Uploading %s...", reel["philosopher"])
             try:
-                upload_reel(reel["mp4_path"], reel["caption"], reel.get("jpg_path"))
+                upload_reel(
+                    reel["mp4_path"], reel["caption"], reel.get("jpg_path"),
+                    meta={
+                        "philosopher": reel["philosopher"],
+                        "hook": reel.get("hook"),
+                        "slogan": reel.get("slogan"),
+                        "slug": reel.get("slug"),
+                        "style": STYLE,
+                    },
+                )
                 uploaded += 1
                 log.info("  Uploaded %s", reel["philosopher"])
             except Exception as e:
