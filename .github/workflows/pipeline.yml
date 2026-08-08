@@ -125,14 +125,41 @@ jobs:
           # narration (tts.py PITCH_SEMITONES -4.5, ~82 Hz). Remove this line
           # to fall back to the 7s fast-cut capcut style.
           STYLE: kinetic
+          # Phase 3 of the self-improving loop. OFF by default in bandit.py, so
+          # without this the insights pull no-ops, every ledger row keeps
+          # insights=None, and BOTH bandits (hook + quote theme) stay pinned to
+          # their round-robin baseline forever. Requires a Business/Creator
+          # account -- the endpoint is account-type gated.
+          PHILOSOPHER_LIVE_INSIGHTS: "1"
         run: python pipeline.py --single
+
+      # Posts need ~48h before Instagram computes insights, so this pulls
+      # metrics for EARLIER posts, not the one just published. Runs after the
+      # pipeline so a failure here can never block a reel.
+      - name: Refresh engagement insights
+        if: always()
+        continue-on-error: true
+        env:
+          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
+          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+          PHILOSOPHER_LIVE_INSIGHTS: "1"
+        run: python -c "import logging,insights; logging.basicConfig(level=logging.INFO); insights.refresh_pending()"
 
       - name: Commit updated state
         if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add state.json runs/latest.json runs/history.jsonl
+          # upload_ledger.jsonl and quote_pool.json were MISSING here until
+          # 2026-07-31. Both are written inside the ephemeral runner, so every
+          # engagement observation from the first 109 posts was destroyed when
+          # the job ended -- which is why the bandits never had data to learn
+          # from. Anything the loop earns must be committed back or it does not
+          # exist.
+          # Whole runs/ dir, not named files: a named path that does not exist
+          # yet aborts `git add` with "pathspec did not match", which on the
+          # very first run is exactly the ledger/pool files we are adding.
+          git add state.json runs/
           git diff --cached --quiet || git commit -m "chore: update state + run metrics [skip ci]"
           git push
 

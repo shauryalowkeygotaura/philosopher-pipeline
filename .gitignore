@@ -3,6 +3,10 @@
 secrets.json
 env_dump.json
 *.session
+# Timestamped safety backups (state.json.bak.*, runs/quote_pool.json.bak.*).
+# The CI commit step now does `git add runs/` wholesale, so without this every
+# prune/backfill backup would be committed as repo clutter.
+*.bak.*
 # Local debug/CI artifacts
 catch.py
 debug_output.txt
@@ -17,3 +21,5 @@ logs/
 .pytest_cache/
 # Local-only voice-profiling reference assets (10+ MB, dev tooling only)
 reference/
+# Voice-profiling scratch renders (16 MB of mp3, no code references them)
+samples/

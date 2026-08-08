@@ -211,13 +211,23 @@ def main(upload_now=True, single=False, generate_only=False):
 
         log.info("  Fetching quote...")
         try:
-            quote_result = fetch_quote(philosopher, phil_state["used_quotes"])
+            # post_count drives the theme bandit: round-robin over THEMES until
+            # the ledger carries engagement insights, then reward-biased.
+            quote_result = fetch_quote(
+                philosopher,
+                phil_state["used_quotes"],
+                post_count=phil_state["post_count"],
+            )
         except Exception as e:
             log.warning("  Quote fetch failed for %s: %s, skipping.", philosopher, e)
             continue
         quote = quote_result["quote"]
         reframed = quote_result["reframed"]
-        log.info("  Quote: %s...", quote[:60])
+        theme = quote_result.get("theme")
+        log.info(
+            "  Quote [%s/%s]: %s...",
+            theme, quote_result.get("source"), quote[:60],
+        )
 
         log.info("  Matching song...")
         try:
@@ -358,6 +368,8 @@ def main(upload_now=True, single=False, generate_only=False):
             "caption": caption,
             "hook": hook,
             "slogan": slogan,
+            "quote": quote,
+            "theme": theme,
             "slug": slug,
         })
         log.info("  Reel ready: %s", mp4_path)
@@ -384,6 +396,8 @@ def main(upload_now=True, single=False, generate_only=False):
                         "philosopher": reel["philosopher"],
                         "hook": reel.get("hook"),
                         "slogan": reel.get("slogan"),
+                        "quote": reel.get("quote"),
+                        "theme": reel.get("theme"),
                         "slug": reel.get("slug"),
                         "style": STYLE,
                     },

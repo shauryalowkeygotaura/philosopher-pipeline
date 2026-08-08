@@ -123,10 +123,21 @@ def test_fetch_quote_caps_length_at_280_chars():
     assert len(result["quote"]) > 0
 
 
-def test_fetch_quote_marks_reframed_when_flagged():
+def test_fetch_quote_marks_reframed_when_flagged(tmp_path):
+    """Exhausting the pool marks the result as a replay.
+
+    Uses an isolated pool_path: since 2026-08-01 the live pool also contains
+    Groq-generated quotes, so spending only the static PHILOSOPHER_QUOTES no
+    longer exhausts a philosopher. allow_generation=False keeps it offline.
+    """
     from fetcher import PHILOSOPHER_QUOTES
     all_voltaire = PHILOSOPHER_QUOTES["voltaire"]
-    result = fetch_quote("Voltaire", used_quotes=list(all_voltaire))
+    result = fetch_quote(
+        "Voltaire",
+        used_quotes=list(all_voltaire),
+        allow_generation=False,
+        pool_path=tmp_path / "pool.json",
+    )
     assert result["reframed"] is True
 
 

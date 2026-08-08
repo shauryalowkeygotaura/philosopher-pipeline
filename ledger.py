@@ -82,6 +82,8 @@ def record_upload(
     philosopher: str | None = None,
     hook: str | None = None,
     slogan: str | None = None,
+    quote: str | None = None,
+    theme: str | None = None,
     slug: str | None = None,
     style: str | None = None,
     extra: dict[str, Any] | None = None,
@@ -110,6 +112,11 @@ def record_upload(
         "philosopher": philosopher,
         "hook": hook,
         "slogan": slogan,
+        # quote/theme are the attribution keys for the quote-supply bandit.
+        # `theme` is the actual learning arm: a quote publishes exactly once, so
+        # per-quote reward has n=1 forever, while themes recur and accumulate.
+        "quote": quote,
+        "theme": theme,
         "slug": slug,
         "style": style,
         "mp4": Path(mp4_path).name if mp4_path else None,

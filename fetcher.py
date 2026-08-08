@@ -1,7 +1,10 @@
 import ctypes
 import hashlib
+import json
 import logging
+import os
 import random
+import re
 import sys
 import time
 import requests
@@ -230,16 +233,18 @@ def get_bio(philosopher: str) -> str:
     return PHILOSOPHER_BIOS.get(philosopher.lower(), "")
 
 
-def fetch_quote(philosopher: str, used_quotes: list) -> dict:
-    all_quotes = PHILOSOPHER_QUOTES.get(philosopher.lower(), [])
-    used_set = set(used_quotes)
-    fresh = [q for q in all_quotes if q not in used_set]
+def fetch_quote(philosopher: str, used_quotes: list, **kwargs) -> dict:
+    """Return {"quote", "theme", "reframed", "source"} for the next reel.
 
-    if fresh:
-        return {"quote": fresh[0], "reframed": False}
-    if all_quotes:
-        return {"quote": all_quotes[0], "reframed": True}
-    return {"quote": "The unexamined life is not worth living.", "reframed": True}
+    Thin adapter kept for the existing call sites; all selection logic lives in
+    quotes.select_quote(). The old implementation served PHILOSOPHER_QUOTES[0]
+    forever once a philosopher's 6-7 quotes were spent, which by 2026-07-31 had
+    frozen every philosopher onto a single repeating quote. Extra kwargs
+    (post_count, entries, allow_generation, pool_path) pass straight through.
+    """
+    import quotes  # deferred: quotes.py reads PHILOSOPHER_QUOTES from this module
+
+    return quotes.select_quote(philosopher, used_quotes, **kwargs)
 
 
 # Static prefix kept verbatim at the top of every fetch_slogan() call so the

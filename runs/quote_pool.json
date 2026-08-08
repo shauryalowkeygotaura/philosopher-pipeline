@@ -1,0 +1,434 @@
+{
+  "albert camus": [
+    {
+      "quote": "One must imagine Sisyphus happy",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Do not wait for the last judgment, it takes place every day.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The absurd is born out of this confrontation between the human need and the unreasonable silence of the world.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Real generosity toward the future lies in giving all to the present.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "fyodor dostoevsky": [
+    {
+      "quote": "Life is paradise, and we are all in paradise",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Man is a creature that can get accustomed to anything",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Nothing is more seductive for man than freedom of conscience",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Suffering is the sole origin of consciousness",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "To go wrong in one's own way is better than to go right in someone else's.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Time is a great teacher, but unfortunately it kills all its pupils.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "franz kafka": [
+    {
+      "quote": "You can hold yourself back from the sufferings of the world",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "I have hardly anything in common with myself",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "You do not need to leave your room",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "In the fight between you and the world, back the world",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "All human errors are impatience",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Suffering is the positive element in this world, indeed it is the only link between this world and the positive.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The truth is always an abyss.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "voltaire": [
+    {
+      "quote": "We are all born ignorant, but one must work hard to remain stupid.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Appreciation is a wonderful thing: It makes what is excellent in others belong to us as well.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The secret of being boring is to say everything",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Doubt is not a pleasant condition, but certainty is absurd.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "I die adoring God, loving my friends, not hating my enemies, and detesting superstition.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "To hold a pen is to be at war.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Those who can make you believe absurdities can make you commit atrocities.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "friedrich nietzsche": [
+    {
+      "quote": "My formula for greatness in a human being is amor fati",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Death is a great presupposition of life",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "I am not a man, I am dynamite",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "One must have chaos within oneself",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "You must have chaos within you to give birth to a dancing star.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "simone de beauvoir": [
+    {
+      "quote": "Life is occupied in both perpetuating itself and in surpassing itself",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "To will oneself free is also to will others free",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "No one is more arrogant toward women, more aggressive or scornful, than the man who is anxious about his virility.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "I am too intelligent, too demanding, and too resourceful for anyone to be able to take charge of me entirely.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-07"
+    },
+    {
+      "quote": "The present is not a potential past.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-07"
+    }
+  ],
+  "søren kierkegaard": [
+    {
+      "quote": "To venture causes anxiety, but not to venture is to lose oneself",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Despair is the sickness unto death",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The absurd is that the eternal truth has come into existence in time.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Despair is the misrelation in the relation of the self to itself.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "arthur schopenhauer": [
+    {
+      "quote": "Life is a business that does not cover its costs.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Death is the genial tyrant of the world",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "A man can be himself only so long as he is alone",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "To live alone is the fate of all great souls",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "A man should be upright, not be kept upright.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Wealth is like sea-water; the more we drink, the thirstier we become.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The shortness of life, so often lamented, may be the best thing about it.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Buying books would be a good thing if one could also buy the time to read them.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "marcus aurelius": [
+    {
+      "quote": "The universe is change; our life is what our thoughts make it.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "When you arise in the morning think of what a privilege it is to be alive.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The art of living is more like wrestling than dancing.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "You could leave life right now. Let that determine what you do and say and think.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "To live happily is an inward virtue of the soul.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Nowhere can man find a quieter or more untroubled retreat than in his own soul.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The soul becomes dyed with the color of its thoughts.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ],
+  "immanuel kant": [
+    {
+      "quote": "The unconditioned necessity of a thing is not to be found in experience, but in the concept of the thing.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "All our knowledge begins with sense, proceeds then to understanding, and ends with reason.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The unconditioned causality of freedom is outside time.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-07"
+    },
+    {
+      "quote": "Desire is the faculty of desiring something so far as it is in our power.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-07"
+    },
+    {
+      "quote": "Time is nothing but the form of inner sense.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-07"
+    },
+    {
+      "quote": "The only thing that is good without qualification is a good will.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-08-07"
+    }
+  ],
+  "jean-paul sartre": [
+    {
+      "quote": "If you are lonely when you are alone, you are in bad company.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Desire is a lack of being.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-07"
+    },
+    {
+      "quote": "Man is a being who desires.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-07"
+    }
+  ],
+  "blaise pascal": [
+    {
+      "quote": "The eternal silence of these infinite spaces frightens me.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "I have often said that the sole cause of man's unhappiness is that he does not know how to stay quietly in his room.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Men are so necessarily mad, that not to be mad would amount to another form of madness.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "The present is never our goal.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "We never keep to the present.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-01"
+    },
+    {
+      "quote": "Time heals griefs and quarrels.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-01"
+    }
+  ]
+}

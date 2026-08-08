@@ -132,6 +132,8 @@ def _record_to_ledger(media, mp4_path: str, caption: str, meta: dict | None) -> 
             philosopher=meta.get("philosopher"),
             hook=meta.get("hook"),
             slogan=meta.get("slogan"),
+            quote=meta.get("quote"),
+            theme=meta.get("theme"),
             slug=meta.get("slug"),
             style=meta.get("style"),
         )
