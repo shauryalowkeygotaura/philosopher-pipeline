@@ -1,0 +1,109 @@
+name: Quote Pool Maintenance
+
+# Keeps the quote supply stocked without anyone running a script.
+#
+# Deliberately a SEPARATE workflow from pipeline.yml:
+#   - a slow or failing top-up must never delay or break a reel
+#   - it commits only philosophers.md + runs/, so it cannot race the reel job
+#     over state.json
+#   - it can be re-run on its own when the pool needs attention
+#
+# Sunday 04:00 UTC (09:30 IST) puts it before the week's first cron slot
+# (Tue 03:30 UTC), so the pool is stocked ahead of demand rather than after.
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Desired unpublished quotes per philosopher"
+        default: "8"
+      min_runway:
+        description: "Promote a new philosopher below this TOTAL runway"
+        default: "40"
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # Only what quotes.py needs. No ffmpeg, no rendering deps: this job never
+      # touches a reel, so it should not pay for the pipeline's toolchain.
+      - name: Install dependencies
+        run: pip install groq
+
+      - name: Top up the quote pool
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python scripts/maintain_pool.py \
+            --target "${{ github.event.inputs.target || '8' }}" \
+            --min-runway "${{ github.event.inputs.min_runway || '40' }}"
+
+      - name: Commit the restocked pool
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # philosophers.md changes only when a promotion happened.
+          git add philosophers.md runs/
+          git diff --cached --quiet || git commit -m "chore: restock quote pool [skip ci]"
+          git push
+
+      # The pool starving is the condition that let the original frozen-quote
+      # bug run for 85 reels unnoticed. It gets a notification, not a log line.
+      - name: Report a starving pool
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f runs/pool_status.json ]; then
+            echo "No pool_status.json — maintenance did not complete."
+            exit 0
+          fi
+          python - <<'PY' > issue_body.md
+          import json, pathlib
+          s = json.loads(pathlib.Path("runs/pool_status.json").read_text(encoding="utf-8"))
+          starved = s.get("starved") or []
+          print(f"Total runway: **{s.get('total_runway')}** (threshold {s.get('min_runway')})")
+          print(f"\nQuotes added this run: {s.get('quotes_added')}")
+          print(f"\nPromoted: {', '.join(s.get('promoted') or []) or 'nobody'}")
+          print(f"\n## Out of fresh quotes\n")
+          for p in starved:
+              print(f"- {p}")
+          print("\nThese will republish an earlier quote via LRU spaced replay "
+                "until the pool is restocked.\n")
+          print("The generator could not produce verified quotes for them. Either "
+                "the attribution gate is rejecting everything (check the run log) "
+                "or the model is genuinely out of documented material for that "
+                "thinker, in which case promote a replacement from `roster.py`.")
+          pathlib.Path("starved.flag").write_text("1" if starved else "")
+          PY
+          if [ -s starved.flag ]; then
+            TITLE="Quote pool starving: $(python -c "import json;print(', '.join(json.load(open('runs/pool_status.json'))['starved']))")"
+            # Reuse an open issue rather than filing a duplicate every Sunday.
+            EXISTING=$(gh issue list --state open --label quote-pool --json number --jq '.[0].number')
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body-file issue_body.md
+            else
+              gh label create quote-pool --color B60205 --description "Quote supply needs attention" 2>/dev/null || true
+              gh issue create --title "$TITLE" --label quote-pool --body-file issue_body.md
+            fi
+          else
+            echo "Pool healthy — nothing to report."
+          fi

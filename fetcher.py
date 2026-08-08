@@ -230,7 +230,17 @@ PORTRAIT_QUERIES = [
 
 
 def get_bio(philosopher: str) -> str:
-    return PHILOSOPHER_BIOS.get(philosopher.lower(), "")
+    """Caption bio, falling back to the promotion bench.
+
+    Philosophers promoted by the autonomous maintenance run are not in
+    PHILOSOPHER_BIOS, so without this fallback every auto-added thinker would
+    ship a caption with no bio line.
+    """
+    hit = PHILOSOPHER_BIOS.get(philosopher.lower())
+    if hit:
+        return hit
+    import roster
+    return roster.bio(philosopher)
 
 
 def fetch_quote(philosopher: str, used_quotes: list, **kwargs) -> dict:
@@ -322,7 +332,11 @@ def match_song(philosopher, quote, songs, used_in_run, used_for_philosopher):
     if not available:
         available = songs
 
-    vibes = PHILOSOPHER_VIBES.get(philosopher.lower(), [])
+    vibes = PHILOSOPHER_VIBES.get(philosopher.lower())
+    if not vibes:
+        # Promoted philosophers carry their vibes on the bench, not here.
+        import roster
+        vibes = roster.vibes(philosopher)
 
     def score(song):
         label_words = song["label"].lower().split()

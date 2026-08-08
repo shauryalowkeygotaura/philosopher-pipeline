@@ -23,6 +23,18 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "A man's work is nothing but this slow trek to rediscover, through the detours of art, those two or three great and simple images in whose presence his heart first opened.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
+    },
+    {
+      "quote": "I do not want to found a philosophical school, I only want people to think.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "fyodor dostoevsky": [
@@ -105,6 +117,12 @@
       "theme": "suffering",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "One must be able to think back to the time of the end of a happiness.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "voltaire": [
@@ -149,6 +167,18 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "We are all full of weakness and errors; let us mutually pardon each other our follies.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
+    },
+    {
+      "quote": "It is better to risk saving a guilty person than to condemn an innocent one.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "friedrich nietzsche": [
@@ -213,6 +243,12 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-07"
+    },
+    {
+      "quote": "To will oneself moral and to will oneself free is the same thing.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "søren kierkegaard": [
@@ -239,6 +275,18 @@
       "theme": "desire",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "No one dies of fatal truths now.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
+    },
+    {
+      "quote": "Purity of heart is to will one thing.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "arthur schopenhauer": [
@@ -333,6 +381,12 @@
       "theme": "solitude",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "When you wake up in the morning, tell yourself: The people I deal with today will be meddling, ungrateful, arrogant, dishonest, jealous, and surly.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "immanuel kant": [
@@ -371,6 +425,18 @@
       "theme": "suffering",
       "source": "groq",
       "added": "2026-08-07"
+    },
+    {
+      "quote": "Morality is not the doctrine of how we may make ourselves happy, but how we may make ourselves worthy of happiness.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-08"
+    },
+    {
+      "quote": "Time is not an empirical concept that has been derived from any experience.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ],
   "jean-paul sartre": [
@@ -429,6 +495,18 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "Men never do evil so completely and cheerfully as when they do it from religious conviction.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-08"
+    },
+    {
+      "quote": "All men's miseries derive from not being able to sit in a quiet room alone.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-08"
     }
   ]
 }

@@ -202,8 +202,40 @@ def main(upload_now=True, single=False, generate_only=False):
     used_songs_this_run = []
 
     if single:
-        philosophers = sorted(philosophers, key=lambda p: state.get_philosopher(p)["post_count"])[:1]
-        log.info("Running in --single mode. Selected %s", philosophers[0])
+        # Prefer a philosopher who still has an unpublished quote, then the
+        # least-posted among them. Sorting on post_count alone would hand the
+        # slot to someone the generator is tapped out on (Sartre, 2026-08-08)
+        # and force an LRU replay while eight others had fresh quotes waiting.
+        import quotes as _quotes
+        from fetcher import PHILOSOPHER_QUOTES
+
+        try:
+            pool = _quotes.load_pool()
+        except Exception as e:  # noqa: BLE001 - selection must never abort a run
+            log.warning("  Could not read the quote pool (%s); ranking on "
+                        "post_count alone.", e)
+            pool = {}
+
+        # Memoized: the sort key and the log line would otherwise recompute this
+        # for every philosopher several times over.
+        runways = {}
+        for name in philosophers:
+            key = name.lower()
+            rows = [{"quote": q} for q in PHILOSOPHER_QUOTES.get(key, [])] + pool.get(key, [])
+            used = _quotes.canon_set(state.get_philosopher(name)["used_quotes"])
+            runways[name] = sum(1 for r in rows if _quotes.canon(r["quote"]) not in used)
+
+        ranked = sorted(
+            philosophers,
+            key=lambda p: (runways[p] <= 0, state.get_philosopher(p)["post_count"]),
+        )
+        philosophers = ranked[:1]
+        chosen = philosophers[0]
+        log.info("Running in --single mode. Selected %s (runway=%d, posts=%d)",
+                 chosen, runways[chosen], state.get_philosopher(chosen)["post_count"])
+        if runways[chosen] <= 0:
+            log.error("Every philosopher is out of fresh quotes; this reel will "
+                      "REPLAY. Run scripts/maintain_pool.py.")
 
     for philosopher in philosophers:
         log.info("== %s ==", philosopher)

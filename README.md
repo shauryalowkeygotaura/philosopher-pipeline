@@ -53,18 +53,50 @@ unceasing") — the model believes that one *stably*, so self-consistency voting
 costs 3x and buys nothing. **Raise yield by asking for more candidates
 (`n=12`), never by loosening the gate.**
 
-### Maintenance
+### It restocks itself
+
+`.github/workflows/quote-maintenance.yml` runs `scripts/maintain_pool.py`
+every Sunday 04:00 UTC — ahead of the week's first reel slot, so the pool is
+stocked before it is drawn on. **Nothing here needs running by hand.** Each run:
+
+1. measures runway (unpublished quotes) per philosopher
+2. tops up anyone below `--target` (default 8) across all themes
+3. if TOTAL runway is still under `--min-runway` (default 40), **promotes the
+   next philosopher from `roster.py`** and stocks them
+4. writes `runs/pool_status.json`, commits `philosophers.md` + `runs/`, and
+   opens (or comments on) a `quote-pool` GitHub issue if anything starved
+
+Step 3 is what makes this unbounded. Groq can only recall 15-30 genuinely
+documented quotes per thinker before the attribution gate rejects everything —
+Sartre hit that wall on 2026-08-08 at a runway of 3. Topping up the same twelve
+forever has a hard ceiling; adding thinkers does not. `roster.py` carries 18
+vetted candidates (all long dead, public domain, heavily quoted, portrait-
+servable), promoted top-down, one per run.
+
+The maintenance job is deliberately separate from `pipeline.yml`: a slow or
+failing top-up must never delay a reel, and the two jobs never write the same
+files (maintenance owns `philosophers.md` + the pool; the pipeline owns
+`state.json`).
+
+`--single` also prefers a philosopher who *has* fresh quotes, so a tapped-out
+thinker no longer burns a slot on a replay while eight others have material.
+
+### Manual knobs (rarely needed)
 
 ```bash
-# keep a buffer of verified quotes ahead of demand
-doppler run -- python scripts/topup_pool.py --target 8
+# force a restock now, or preview one
+doppler run -- python scripts/maintain_pool.py --dry-run
 
-# re-verify pooled quotes after tightening the verifier (backs up first)
+# re-verify pooled quotes after tightening the verifier (destructive, backs up)
 doppler run -- python scripts/topup_pool.py --prune --dry-run
 
 # seed/refresh the bandit from reels already on Instagram
 doppler run -- python scripts/backfill_ledger.py --dry-run
 ```
+
+Pruning stays manual on purpose. An unattended job that can delete the pool on
+a bad model day is precisely the failure mode this codebase already learned
+about the hard way.
 
 ### Postmortem: the frozen-quote bug (2026-08-06)
 
