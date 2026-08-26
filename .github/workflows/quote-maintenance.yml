@@ -43,15 +43,24 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      # Only what quotes.py needs. No ffmpeg, no rendering deps: this job never
-      # touches a reel, so it should not pay for the pipeline's toolchain.
+      # The import chain is maintain_pool -> quotes -> fetcher, and fetcher
+      # imports requests at module scope. Installing only `groq` here broke
+      # every run from 2026-08-09 to 2026-08-23 with ModuleNotFoundError.
+      # Still deliberately not requirements.txt: this job never renders a reel,
+      # so it should not pay for Pillow/librosa/instagrapi. If you add a
+      # third-party import anywhere in that chain, add it here too.
       - name: Install dependencies
-        run: pip install groq
+        run: pip install groq requests
 
       - name: Top up the quote pool
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
+          # Last run's pool_status.json is committed to the repo. If this step
+          # crashes, a stale file would let the report step below announce
+          # "Pool healthy" for a run that never happened, which is exactly what
+          # masked the ModuleNotFoundError for two weeks.
+          rm -f runs/pool_status.json
           python scripts/maintain_pool.py \
             --target "${{ github.event.inputs.target || '8' }}" \
             --min-runway "${{ github.event.inputs.min_runway || '40' }}"
@@ -65,45 +74,76 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: restock quote pool [skip ci]"
           git push
 
-      # The pool starving is the condition that let the original frozen-quote
-      # bug run for 85 reels unnoticed. It gets a notification, not a log line.
-      - name: Report a starving pool
+      # One notification channel for BOTH failure shapes: the pool starved, or
+      # the run never completed. A silently-failing maintenance job is the same
+      # class of bug as the silent [0] fallback this system exists to prevent,
+      # so it must reach a human either way.
+      - name: Report pool problems
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          set -u
+          notify() {  # $1 = issue title, $2 = body file
+            gh label create quote-pool --color B60205 --description "Quote supply needs attention" 2>/dev/null || true
+            EXISTING=$(gh issue list --state open --label quote-pool --json number --jq '.[0].number' 2>/dev/null || echo "")
+            if [ -n "$EXISTING" ]; then
+              gh issue comment "$EXISTING" --body-file "$2"
+            else
+              gh issue create --title "$1" --label quote-pool --body-file "$2"
+            fi
+          }
+
+          # The status file is removed before the top-up step, so its absence
+          # here means that step crashed, never that the pool is fine.
           if [ ! -f runs/pool_status.json ]; then
-            echo "No pool_status.json — maintenance did not complete."
-            exit 0
+            {
+              echo "Quote pool maintenance failed before writing a status file."
+              echo ""
+              echo "Run: $RUN_URL"
+              echo ""
+              echo "The pool was NOT restocked. Reels keep shipping from the"
+              echo "existing buffer and fall back to LRU spaced replay once it"
+              echo "empties, so this degrades quietly rather than breaking."
+              echo ""
+              echo "Check the 'Top up the quote pool' step log. A missing"
+              echo "third-party import is the known cause: this job installs"
+              echo "only groq + requests, so any new import in the"
+              echo "maintain_pool -> quotes -> fetcher chain must be added to"
+              echo "the install step."
+            } > issue_body.md
+            notify "Quote pool maintenance failed" issue_body.md
+            exit 1
           fi
+
           python - <<'PY' > issue_body.md
-          import json, pathlib
+          import json, os, pathlib
           s = json.loads(pathlib.Path("runs/pool_status.json").read_text(encoding="utf-8"))
           starved = s.get("starved") or []
-          print(f"Total runway: **{s.get('total_runway')}** (threshold {s.get('min_runway')})")
-          print(f"\nQuotes added this run: {s.get('quotes_added')}")
-          print(f"\nPromoted: {', '.join(s.get('promoted') or []) or 'nobody'}")
-          print(f"\n## Out of fresh quotes\n")
-          for p in starved:
-              print(f"- {p}")
-          print("\nThese will republish an earlier quote via LRU spaced replay "
-                "until the pool is restocked.\n")
-          print("The generator could not produce verified quotes for them. Either "
-                "the attribution gate is rejecting everything (check the run log) "
-                "or the model is genuinely out of documented material for that "
-                "thinker, in which case promote a replacement from `roster.py`.")
+          out = []
+          out.append("Run: " + os.environ.get("RUN_URL", ""))
+          out.append("")
+          out.append("Total runway: **%s** (threshold %s)" % (s.get("total_runway"), s.get("min_runway")))
+          out.append("Quotes added this run: %s" % s.get("quotes_added"))
+          out.append("Promoted: %s" % (", ".join(s.get("promoted") or []) or "nobody"))
+          out.append("")
+          out.append("## Out of fresh quotes")
+          out.extend("- " + n for n in starved)
+          out.append("")
+          out.append("These republish an earlier quote via LRU spaced replay until restocked.")
+          out.append("")
+          out.append("The generator could not produce verified quotes for them. Either the")
+          out.append("attribution gate is rejecting everything (check the run log), or the")
+          out.append("model is out of documented material for that thinker, in which case")
+          out.append("promote a replacement from roster.py.")
+          print(chr(10).join(out))
           pathlib.Path("starved.flag").write_text("1" if starved else "")
           PY
+
           if [ -s starved.flag ]; then
-            TITLE="Quote pool starving: $(python -c "import json;print(', '.join(json.load(open('runs/pool_status.json'))['starved']))")"
-            # Reuse an open issue rather than filing a duplicate every Sunday.
-            EXISTING=$(gh issue list --state open --label quote-pool --json number --jq '.[0].number')
-            if [ -n "$EXISTING" ]; then
-              gh issue comment "$EXISTING" --body-file issue_body.md
-            else
-              gh label create quote-pool --color B60205 --description "Quote supply needs attention" 2>/dev/null || true
-              gh issue create --title "$TITLE" --label quote-pool --body-file issue_body.md
-            fi
+            NAMES=$(python -c "import json;print(', '.join(json.load(open('runs/pool_status.json'))['starved']))")
+            notify "Quote pool starving: $NAMES" issue_body.md
           else
-            echo "Pool healthy — nothing to report."
+            echo "Pool healthy - nothing to report."
           fi
