@@ -137,9 +137,14 @@ _QUOTEMARKS = dict.fromkeys(map(ord, "“”„«»"), '"')
 
 
 def _is_rate_limit(exc: Exception) -> bool:
-    """True for a quota refusal, which no amount of retrying will fix today."""
-    text = str(exc)
-    return "rate_limit_exceeded" in text or "Error code: 429" in text
+    """True only for the per-DAY ceiling, which stopping is the right answer to.
+
+    Deliberately narrower than "any 429". Groq reports its per-MINUTE limit the
+    same way, and models.chat already absorbs those by waiting the couple of
+    seconds it names. Treating both as terminal killed a 2026-08-27 maintenance
+    run after 7 calls over a 2.5-second throttle.
+    """
+    return models.is_throttle(exc) and models.is_daily_limit(exc)
 
 
 def canon(quote: str) -> str:

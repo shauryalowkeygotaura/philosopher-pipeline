@@ -534,3 +534,51 @@ def test_rate_limited_is_not_verification_unavailable():
     """Distinct types: one means 'no quota', the other 'check could not run'."""
     assert not issubclass(quotes.RateLimited, quotes.VerificationUnavailable)
     assert not issubclass(quotes.VerificationUnavailable, quotes.RateLimited)
+
+
+# --- per-minute vs per-day throttles --------------------------------------
+
+_TPM = ("Error code: 429 - {'error': {'message': 'Rate limit reached for model "
+        "`openai/gpt-oss-20b` on tokens per minute (TPM): Limit 8000, Used 7291, "
+        "Requested 1044. Please try again in 2.5125s.', 'code': 'rate_limit_exceeded'}}")
+_TPD = ("Error code: 429 - {'error': {'message': 'Rate limit reached on tokens per "
+        "day (TPD): Limit 200000, Used 199425. Please try again in 3m39.024s.', "
+        "'code': 'rate_limit_exceeded'}}")
+
+
+class _Throttle(Exception):
+    def __init__(self, msg): self.msg = msg
+    def __str__(self): return self.msg
+
+
+def test_per_minute_throttle_is_not_terminal():
+    """Regression: a 2.5-second throttle killed a whole maintenance run.
+
+    Only the per-DAY ceiling justifies stopping. Treating the per-minute limit
+    the same way aborted the 2026-08-27 sweep after 7 of 60 budgeted calls.
+    """
+    assert not quotes._is_rate_limit(_Throttle(_TPM))
+
+
+def test_per_day_limit_is_terminal():
+    assert quotes._is_rate_limit(_Throttle(_TPD))
+
+
+def test_models_classifies_both_as_throttles():
+    import models
+    assert models.is_throttle(_Throttle(_TPM))
+    assert models.is_throttle(_Throttle(_TPD))
+    assert not models.is_daily_limit(_Throttle(_TPM))
+    assert models.is_daily_limit(_Throttle(_TPD))
+
+
+def test_retry_after_is_parsed_from_both_shapes():
+    import models
+    assert abs(models.parse_retry_after(_Throttle(_TPM)) - 2.5125) < 0.01
+    # 3m39.024s -> 219.024
+    assert abs(models.parse_retry_after(_Throttle(_TPD)) - 219.024) < 0.1
+
+
+def test_non_throttle_errors_are_not_rate_limits():
+    assert not quotes._is_rate_limit(_Throttle("model_not_found"))
+    assert not quotes._is_rate_limit(_Throttle("connection reset by peer"))

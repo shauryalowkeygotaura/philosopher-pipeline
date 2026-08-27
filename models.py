@@ -33,6 +33,8 @@ that leaves room to think.
 from __future__ import annotations
 
 import logging
+import re
+import time
 from typing import Any, Sequence
 
 log = logging.getLogger(__name__)
@@ -67,6 +69,44 @@ FAST: tuple[str, ...] = (
 # Reasoning models spend tokens before answering. Below this they truncate
 # mid-thought and JSON mode rejects the result.
 MIN_MAX_TOKENS = 500
+
+# Groq enforces BOTH a per-minute and a per-day token ceiling, and reports both
+# as HTTP 429. They need opposite responses:
+#
+#   TPM (8,000/min on free)  -> transient. Wait the seconds Groq names, retry.
+#   TPD (200,000/day)        -> terminal for today. Stop; retrying burns nothing
+#                               but time and the quota is already gone.
+#
+# Treating a TPM throttle as terminal killed a 2026-08-27 maintenance run after
+# 7 calls with "RATE LIMITED" when the retry window was 2.5 SECONDS.
+MAX_THROTTLE_WAIT = 90.0   # seconds; longer than this is not worth blocking on
+MAX_THROTTLE_RETRIES = 4
+
+
+def parse_retry_after(exc: Exception) -> float | None:
+    """Seconds Groq asks us to wait, from the 429 body. None if unstated."""
+    m = re.search(r"try again in ([0-9.]+)\s*s", str(exc))
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return None
+    m = re.search(r"try again in (?:(\d+)m)?([0-9.]+)s", str(exc))
+    if m:
+        return float(m.group(1) or 0) * 60 + float(m.group(2))
+    return None
+
+
+def is_daily_limit(exc: Exception) -> bool:
+    """True for the per-DAY ceiling, which no amount of waiting fixes today."""
+    text = str(exc)
+    return "per day" in text or "(TPD)" in text or "TPD" in text
+
+
+def is_throttle(exc: Exception) -> bool:
+    """True for any 429, daily or per-minute."""
+    text = str(exc)
+    return "rate_limit_exceeded" in text or "Error code: 429" in text
 
 
 def _extra_params(model: str) -> dict[str, Any]:
@@ -111,6 +151,8 @@ def chat(
     budget = max(max_tokens, MIN_MAX_TOKENS)
     last: Exception | None = None
     for model in tier:
+      attempt = 0
+      while True:
         try:
             resp = client.chat.completions.create(
                 model=model, messages=messages, max_tokens=budget,
@@ -125,10 +167,21 @@ def chat(
                     continue
             return resp
         except Exception as e:  # noqa: BLE001 - inspected, then re-raised
-            if not _is_missing_model(e):
-                raise
-            log.warning("models.chat: %s is gone; trying the next in the chain.", model)
-            last = e
+            if _is_missing_model(e):
+                log.warning("models.chat: %s is gone; trying the next in the chain.", model)
+                last = e
+                break  # next model in the chain
+            # A per-minute throttle is not a failure, it is backpressure.
+            if (is_throttle(e) and not is_daily_limit(e)
+                    and attempt < MAX_THROTTLE_RETRIES):
+                wait = parse_retry_after(e)
+                if wait is not None and wait <= MAX_THROTTLE_WAIT:
+                    attempt += 1
+                    log.info("models.chat: throttled, waiting %.1fs (attempt %d/%d)",
+                             wait + 0.5, attempt, MAX_THROTTLE_RETRIES)
+                    time.sleep(wait + 0.5)
+                    continue
+            raise
     log.error("models.chat: every model in %s is unavailable. Update models.py.", list(tier))
     raise last if last is not None else RuntimeError("no models configured")
 
