@@ -472,3 +472,65 @@ def test_fetch_quote_passes_kwargs_through(pool_path):
     used = list(PHILOSOPHER_QUOTES["voltaire"])
     r = fetch_quote("Voltaire", used, allow_generation=False, pool_path=pool_path)
     assert r["reframed"] is True
+
+
+# --- rate limiting --------------------------------------------------------
+
+class _RateLimit(Exception):
+    """Mimics the Groq SDK's 429 message shape."""
+    def __str__(self):
+        return ("Error code: 429 - {'error': {'message': 'Rate limit reached "
+                "on tokens per day (TPD): Limit 200000', "
+                "'code': 'rate_limit_exceeded'}}")
+
+
+def test_is_rate_limit_detects_429():
+    assert quotes._is_rate_limit(_RateLimit())
+    assert not quotes._is_rate_limit(RuntimeError("connection reset"))
+    assert not quotes._is_rate_limit(RuntimeError("model_not_found"))
+
+
+def test_request_candidates_raises_on_rate_limit(monkeypatch):
+    """A quota refusal must NOT look like 'the model returned nothing'.
+
+    Returning [] would let the caller move to the next theme and spend more
+    calls against a quota that is already gone.
+    """
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+
+    class Boom:
+        def __init__(self, *a, **k):
+            raise _RateLimit()
+
+    monkeypatch.setitem(sys.modules, "groq", type("M", (), {"Groq": Boom}))
+    with pytest.raises(quotes.RateLimited):
+        quotes.request_candidates("Camus", theme="defiance")
+
+
+def test_verify_quotes_raises_on_rate_limit(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+
+    class Boom:
+        def __init__(self, *a, **k):
+            raise _RateLimit()
+
+    monkeypatch.setitem(sys.modules, "groq", type("M", (), {"Groq": Boom}))
+    with pytest.raises(quotes.RateLimited):
+        quotes.verify_quotes("Camus", ["a candidate line long enough to count"])
+
+
+def test_select_quote_survives_rate_limit(pool_path):
+    """A reel must still ship when the quota is gone: LRU floor applies."""
+    import unittest.mock as mock
+
+    used = list(PHILOSOPHER_QUOTES["voltaire"])
+    with mock.patch.object(quotes, "generate_quotes", side_effect=quotes.RateLimited("429")):
+        r = quotes.select_quote("Voltaire", used, allow_generation=True, pool_path=pool_path)
+    assert r["reframed"] is True
+    assert r["quote"]
+
+
+def test_rate_limited_is_not_verification_unavailable():
+    """Distinct types: one means 'no quota', the other 'check could not run'."""
+    assert not issubclass(quotes.RateLimited, quotes.VerificationUnavailable)
+    assert not issubclass(quotes.VerificationUnavailable, quotes.RateLimited)

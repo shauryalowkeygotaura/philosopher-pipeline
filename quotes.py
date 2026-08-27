@@ -136,6 +136,12 @@ _APOSTROPHES = dict.fromkeys(map(ord, "‘’ʼ`´"), "'")
 _QUOTEMARKS = dict.fromkeys(map(ord, "“”„«»"), '"')
 
 
+def _is_rate_limit(exc: Exception) -> bool:
+    """True for a quota refusal, which no amount of retrying will fix today."""
+    text = str(exc)
+    return "rate_limit_exceeded" in text or "Error code: 429" in text
+
+
 def canon(quote: str) -> str:
     """Collapse a quote to a comparison key.
 
@@ -505,6 +511,17 @@ Output STRICT JSON: {"verdicts": [{"n": 1, "ok": true, "source": "The Rebel"}, {
 No prose, no markdown fence."""
 
 
+class RateLimited(RuntimeError):
+    """Groq refused the call because the account's quota is spent.
+
+    Distinct from every other failure: retrying costs tokens we do not have,
+    and the remaining work in the run cannot succeed either. Callers should
+    STOP, not fall through to the next theme -- a 2026-08-27 maintenance run
+    burned the rest of its themes against a 429 after the daily token budget
+    (200k TPD on the free tier) was already gone.
+    """
+
+
 class VerificationUnavailable(RuntimeError):
     """The attribution check could not run (no key, network, malformed response).
 
@@ -555,6 +572,8 @@ def _verify_once(
     except VerificationUnavailable:
         raise
     except Exception as e:  # noqa: BLE001 - external boundary
+        if _is_rate_limit(e):
+            raise RateLimited(str(e)) from e
         return on_unavailable(str(e))
 
     approved = [False] * len(candidates)
@@ -690,6 +709,8 @@ def request_candidates(
         )
         raw = (resp.choices[0].message.content or "").strip()
     except Exception as e:  # noqa: BLE001 - external boundary
+        if _is_rate_limit(e):
+            raise RateLimited(str(e)) from e
         log.warning("request_candidates: Groq call failed: %s", e)
         return []
 
@@ -859,6 +880,9 @@ def select_quote(
                        | canon_set(r["quote"] for r in pool_rows)
                        | known_elsewhere(philosopher, pool_path)),
             )
+        except RateLimited as e:
+            log.error("select_quote: Groq quota exhausted (%s); serving a replay.", e)
+            generated = []
         except Exception as e:  # noqa: BLE001 - never lose the LRU fallback
             log.error("select_quote: generation raised for %s: %s", philosopher, e)
             generated = []

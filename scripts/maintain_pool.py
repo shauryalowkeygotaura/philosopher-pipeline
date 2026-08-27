@@ -62,8 +62,31 @@ def runway(philosopher: str, state: dict, pool: dict) -> int:
     return sum(1 for r in rows if quotes.canon(r["quote"]) not in used)
 
 
+class _Budget:
+    """Shared cap on generation calls for one maintenance run.
+
+    The free Groq tier allows 200k tokens/day. A full sweep of 13 philosophers
+    across 8 themes is ~200 calls of ~1k tokens each, so one unbudgeted run can
+    consume the entire daily quota and then spend the rest of itself hammering
+    a 429. This makes the ceiling explicit instead of discovering it.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.used = 0
+
+    def spend(self) -> bool:
+        if self.used >= self.limit:
+            return False
+        self.used += 1
+        return True
+
+    def exhausted(self) -> bool:
+        return self.used >= self.limit
+
+
 def stock(philosopher: str, state: dict, *, target: int, sleep: float,
-          dry_run: bool) -> int:
+          dry_run: bool, budget: "_Budget") -> int:
     """Generate until `philosopher` has `target` unpublished quotes.
 
     Rotates themes so the buffer spreads across the bandit's arm space instead
@@ -85,10 +108,17 @@ def stock(philosopher: str, state: dict, *, target: int, sleep: float,
             )
             | quotes.known_elsewhere(philosopher)
         )
+        if not budget.spend():
+            log.info("  call budget spent; stopping top-up for %s.", philosopher)
+            break
         try:
             generated = quotes.generate_quotes(
-                philosopher, theme=theme, avoid=avoid, n=12,
+                philosopher, theme=theme, avoid=avoid, n=16,
             )
+        except quotes.RateLimited:
+            # No retry: the quota is gone for the day and every remaining call
+            # in this run would fail the same way.
+            raise
         except Exception as e:  # noqa: BLE001 - never let one theme abort the run
             log.warning("  %s/%s generation failed: %s", philosopher, theme, e)
             generated = []
@@ -110,6 +140,9 @@ def main() -> int:
                     help="promote a new philosopher when TOTAL runway is below this")
     ap.add_argument("--max-promotions", type=int, default=1,
                     help="cap on philosophers promoted in a single run")
+    ap.add_argument("--max-calls", type=int, default=60,
+                    help="cap on Groq generation calls per run; the free tier "
+                         "allows ~200k tokens/day and a full sweep exceeds it")
     ap.add_argument("--max-tapped-share", type=float, default=0.25,
                     help="promote when this share of the roster produced "
                          "nothing, even if total runway looks healthy")
@@ -141,6 +174,8 @@ def main() -> int:
     # 0 of 31 candidates across three themes at runway 1. Aggregate runway hid
     # it completely.
     tapped: list[str] = []
+    budget = _Budget(args.max_calls)
+    rate_limited = False
 
     # --- 1/2. measure and top up ------------------------------------------
     for philosopher in active:
@@ -149,8 +184,15 @@ def main() -> int:
             log.info("%-24s runway=%-3d ok", philosopher, have)
             continue
         log.info("%-24s runway=%-3d topping up...", philosopher, have)
-        got = stock(philosopher, state, target=args.target,
-                    sleep=args.sleep, dry_run=args.dry_run)
+        try:
+            got = stock(philosopher, state, target=args.target,
+                        sleep=args.sleep, dry_run=args.dry_run, budget=budget)
+        except quotes.RateLimited as e:
+            log.error("Groq quota exhausted mid-run: %s", e)
+            log.error("Stopping. Whatever was generated so far is kept.")
+            rate_limited = True
+            got = 0
+            break
         added_total += got
         if got == 0:
             tapped.append(philosopher)
@@ -198,8 +240,13 @@ def main() -> int:
             break
         promoted.append(pick)
         active.append(pick)
-        got = stock(pick, state, target=args.target,
-                    sleep=args.sleep, dry_run=False)
+        try:
+            got = stock(pick, state, target=args.target,
+                        sleep=args.sleep, dry_run=False, budget=budget)
+        except quotes.RateLimited as e:
+            log.error("Groq quota exhausted while stocking %s: %s", pick, e)
+            rate_limited = True
+            got = 0
         added_total += got
         log.info("%-24s stocked with %d quotes", pick, got)
         pool = quotes.load_pool()
@@ -217,6 +264,9 @@ def main() -> int:
         "promoted": promoted,
         "starved": starved,
         "tapped_out": tapped,
+        "rate_limited": rate_limited,
+        "calls_used": budget.used,
+        "call_budget": budget.limit,
         "per_philosopher": per_philosopher,
     }
     if not args.dry_run:
@@ -228,9 +278,11 @@ def main() -> int:
             log.warning("could not write %s: %s", STATUS_PATH, e)
 
     log.info("")
-    log.info("added %d quotes; promoted %s; runway %d; starved %s; tapped out %s",
-             added_total, promoted or "nobody", status["total_runway"],
-             starved or "nobody", tapped or "nobody")
+    log.info("added %d quotes (%d/%d calls); promoted %s; runway %d; "
+             "starved %s; tapped out %s%s",
+             added_total, budget.used, budget.limit, promoted or "nobody",
+             status["total_runway"], starved or "nobody", tapped or "nobody",
+             "; RATE LIMITED" if rate_limited else "")
     if starved:
         # Non-fatal: the LRU floor still ships a reel. The workflow turns this
         # into a GitHub issue so a starving pool cannot go unnoticed the way

@@ -33,12 +33,27 @@ def test_every_candidate_has_bio_and_vibes():
         assert all(isinstance(v, str) and v for v in vibes)
 
 
-def test_bench_does_not_overlap_the_shipped_roster():
-    """A candidate already in philosophers.md would be promoted to a no-op."""
+def test_promoted_names_stay_in_the_catalog():
+    """CANDIDATES is a catalog, not a queue.
+
+    A promoted philosopher must REMAIN in CANDIDATES: it is the only source of
+    their bio and song vibes, so removing them on promotion would ship captions
+    with no bio and break song matching. Seneca was promoted 2026-08-27 and is
+    both active and still catalogued.
+    """
     active = parse_philosophers(Path(__file__).resolve().parent.parent / "philosophers.md")
-    active_lower = {a.lower() for a in active}
-    for name in roster.CANDIDATES:
-        assert name.lower() not in active_lower, f"{name} is already active"
+    for name in active:
+        if name in roster.CANDIDATES:
+            assert roster.bio(name), f"{name} is active but has no bio"
+            assert roster.vibes(name), f"{name} is active but has no vibes"
+
+
+def test_available_never_offers_an_active_name():
+    """The real dedup invariant: promotion must never be a no-op."""
+    active = parse_philosophers(Path(__file__).resolve().parent.parent / "philosophers.md")
+    offered = {n.lower() for n in roster.available(active)}
+    for name in active:
+        assert name.lower() not in offered, f"{name} is active but still offered"
 
 
 def test_bio_and_vibes_lookup_is_case_insensitive():
