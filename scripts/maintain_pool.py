@@ -178,6 +178,12 @@ def main() -> int:
     rate_limited = False
 
     # --- 1/2. measure and top up ------------------------------------------
+    # Neediest first. Roster order spent the whole call budget on philosophers
+    # who already held 6 quotes and never reached Seneca at 0 -- on a throttled
+    # run (2026-08-27) that left the one starved philosopher unstocked while
+    # comfortable ones got topped up. Whoever is closest to replaying wins the
+    # budget.
+    active = sorted(active, key=lambda p: runway(p, state, quotes.load_pool()))
     for philosopher in active:
         have = runway(philosopher, state, quotes.load_pool())
         if have >= args.target:
