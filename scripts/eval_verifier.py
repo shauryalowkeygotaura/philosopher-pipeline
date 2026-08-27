@@ -9,7 +9,7 @@ the MODEL, not of the code, so it must be re-measured whenever the model
 changes. On 2026-08-26 Groq removed the Llama line and the replacement scored
 materially differently:
 
-    llama-3.3-70b-versatile (gone)  recall 50%   false-accept 0%
+    qwen/qwen3.8-27b (gone)  recall 50%   false-accept 0%
     openai/gpt-oss-20b              recall 39%   false-accept 0%
     openai/gpt-oss-120b             recall 28%   false-accept 0%
     qwen/qwen3.8-27b                recall 28%   false-accept 0%

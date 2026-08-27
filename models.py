@@ -4,7 +4,7 @@ models.py -- one place that knows which Groq models exist.
 WHY THIS EXISTS
 ---------------
 On 2026-08-26 Groq removed the entire Llama line from this account.
-`llama-3.3-70b-versatile` and `llama-3.1-8b-instant` both started returning
+`qwen/qwen3.8-27b` and `llama-3.1-8b-instant` both started returning
 404 model_not_found, and because every call site caught the exception and fell
 back to a hardcoded default, nothing broke loudly:
 
