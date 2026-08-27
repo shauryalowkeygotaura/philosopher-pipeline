@@ -188,3 +188,38 @@ def test_non_throttle_errors_propagate_immediately(monkeypatch):
     client = FakeClient(errors=["connection reset by peer"])
     with pytest.raises(Err):
         models.chat(("m",), messages=[], max_tokens=10, client=client)
+
+
+BAD_KEY = "Error code: 401 - {'error': {'message': 'Invalid API Key', 'code': 'invalid_api_key'}}"
+
+
+def test_dead_key_rotates_to_the_next(monkeypatch):
+    """autoshop shipped a placeholder key and every call 401'd.
+
+    A dead key is not a dead service; move on rather than fail the run.
+    """
+    monkeypatch.setenv("GROQ_API_KEY", "placeholder")
+    monkeypatch.setenv("GROQ_API_KEY_2", "real")
+    built = []
+
+    def fake_make(key):
+        built.append(key)
+        return FakeClient(errors=[BAD_KEY] if key == "placeholder" else [])
+
+    monkeypatch.setattr(models, "_make_client", fake_make)
+    assert models.chat(("m",), messages=[], max_tokens=10) is not None
+    assert built == ["placeholder", "real"]
+
+
+def test_bad_key_classification():
+    assert models.is_bad_key(Err(BAD_KEY))
+    assert not models.is_bad_key(Err(TPD))
+    assert not models.is_bad_key(Err(GONE))
+
+
+def test_all_keys_dead_propagates(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "a")
+    monkeypatch.setenv("GROQ_API_KEY_2", "b")
+    monkeypatch.setattr(models, "_make_client", lambda k: FakeClient(errors=[BAD_KEY]))
+    with pytest.raises(Err):
+        models.chat(("m",), messages=[], max_tokens=10)

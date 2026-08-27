@@ -26,7 +26,7 @@ the call site caught the error and fell back to a hardcoded string:
 
 FOUR AXES OF FALLBACK
 ---------------------
-    key    -> rotate on a spent DAILY quota (a different Groq ACCOUNT only)
+    key    -> rotate on a spent DAILY quota, or a dead/revoked key (401)
     model  -> walk the tier chain on 404 model_not_found
     time   -> wait out a per-minute throttle, which Groq sizes for you
     budget -> raise every max_tokens to a floor so reasoning models can think
@@ -114,15 +114,15 @@ def get_client() -> Any:
     return _make_client(keys[min(_key_index, len(keys) - 1)])
 
 
-def _rotate_key() -> bool:
+def _rotate_key(reason: str = "unusable") -> bool:
     """Move to the next key. False when every key is spent."""
     global _key_index
     keys = api_keys()
     if _key_index + 1 >= len(keys):
         return False
     _key_index += 1
-    log.warning("groq_pool: daily quota spent; switching to key %d of %d.",
-                _key_index + 1, len(keys))
+    log.warning("groq_pool: key %d %s; switching to key %d of %d.",
+                _key_index, reason, _key_index + 1, len(keys))
     return True
 
 
@@ -171,6 +171,17 @@ def is_missing_model(exc: Exception) -> bool:
     """The model is gone, as opposed to the request being wrong."""
     t = str(exc)
     return "model_not_found" in t or "does not exist or you do not have access" in t
+
+
+def is_bad_key(exc: Exception) -> bool:
+    """The key itself is rejected: revoked, mistyped, or a placeholder.
+
+    autoshop shipped `gsk_..._here` in Doppler and every call 401'd. A dead key
+    is not a dead service, so the right move is the same as an exhausted one:
+    move to the next key rather than fail the run.
+    """
+    t = str(exc)
+    return "invalid_api_key" in t or "Invalid API Key" in t or "Error code: 401" in t
 
 
 def is_throttle(exc: Exception) -> bool:
@@ -251,11 +262,14 @@ def chat(
                     log.warning("groq_pool: %s is gone; trying the next model.", model)
                     last = e
                     break
-                # A spent DAILY quota is exactly what the spare keys are for.
-                if (is_throttle(e) and is_daily_limit(e)
-                        and owns_client and _rotate_key()):
-                    active = get_client()
-                    continue
+                # A spent DAILY quota, or a key that is simply dead, is
+                # exactly what the spare keys are for.
+                if is_bad_key(e) or (is_throttle(e) and is_daily_limit(e)):
+                    reason = ("was rejected (401 invalid key)" if is_bad_key(e)
+                              else "has spent its daily quota")
+                    if owns_client and _rotate_key(reason):
+                        active = get_client()
+                        continue
                 # A per-minute throttle is backpressure, not failure. Never
                 # rotate a key for it: that burns the capacity the spare key
                 # was added to provide, over a wait of a couple of seconds.
