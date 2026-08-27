@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-08-27T08:38:11Z",
+  "checked_at": "2026-08-27T08:57:14Z",
   "total_runway": 65,
   "min_runway": 40,
   "quotes_added": 0,
@@ -7,9 +7,11 @@
   "starved": [
     "Seneca"
   ],
-  "tapped_out": [],
+  "tapped_out": [
+    "Albert Camus"
+  ],
   "rate_limited": true,
-  "calls_used": 7,
+  "calls_used": 9,
   "call_budget": 60,
   "per_philosopher": {
     "Albert Camus": 5,
