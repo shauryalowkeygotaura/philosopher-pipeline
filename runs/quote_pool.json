@@ -35,6 +35,12 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-08"
+    },
+    {
+      "quote": "The absurd man is the one who refuses to surrender to the absurd.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "fyodor dostoevsky": [
@@ -179,6 +185,12 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-08-08"
+    },
+    {
+      "quote": "I do not agree with what you say, but I will defend to the death your right to say it.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "friedrich nietzsche": [

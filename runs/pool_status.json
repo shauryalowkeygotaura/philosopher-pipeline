@@ -1,15 +1,29 @@
 {
-  "checked_at": "2026-08-27T04:02:53Z",
-  "total_runway": 63,
+  "checked_at": "2026-08-27T05:02:34Z",
+  "total_runway": 65,
   "min_runway": 40,
-  "quotes_added": 5,
-  "promoted": [],
-  "starved": [],
+  "quotes_added": 2,
+  "promoted": [
+    "Seneca"
+  ],
+  "starved": [
+    "Seneca"
+  ],
+  "tapped_out": [
+    "Fyodor Dostoevsky",
+    "Franz Kafka",
+    "Friedrich Nietzsche",
+    "Simone de Beauvoir",
+    "Søren Kierkegaard",
+    "Arthur Schopenhauer",
+    "Jean-Paul Sartre",
+    "Blaise Pascal"
+  ],
   "per_philosopher": {
-    "Albert Camus": 4,
+    "Albert Camus": 5,
     "Fyodor Dostoevsky": 4,
     "Franz Kafka": 6,
-    "Voltaire": 7,
+    "Voltaire": 8,
     "Friedrich Nietzsche": 4,
     "Simone de Beauvoir": 5,
     "Søren Kierkegaard": 4,
@@ -17,6 +31,7 @@
     "Marcus Aurelius": 8,
     "Immanuel Kant": 8,
     "Jean-Paul Sartre": 1,
-    "Blaise Pascal": 6
+    "Blaise Pascal": 6,
+    "Seneca": 0
   }
 }

@@ -12,3 +12,4 @@
 - Immanuel Kant
 - Jean-Paul Sartre
 - Blaise Pascal
+- Seneca
