@@ -1,24 +1,16 @@
 {
-  "checked_at": "2026-08-27T05:02:34Z",
+  "checked_at": "2026-08-27T08:38:11Z",
   "total_runway": 65,
   "min_runway": 40,
-  "quotes_added": 2,
-  "promoted": [
-    "Seneca"
-  ],
+  "quotes_added": 0,
+  "promoted": [],
   "starved": [
     "Seneca"
   ],
-  "tapped_out": [
-    "Fyodor Dostoevsky",
-    "Franz Kafka",
-    "Friedrich Nietzsche",
-    "Simone de Beauvoir",
-    "Søren Kierkegaard",
-    "Arthur Schopenhauer",
-    "Jean-Paul Sartre",
-    "Blaise Pascal"
-  ],
+  "tapped_out": [],
+  "rate_limited": true,
+  "calls_used": 7,
+  "call_budget": 60,
   "per_philosopher": {
     "Albert Camus": 5,
     "Fyodor Dostoevsky": 4,
