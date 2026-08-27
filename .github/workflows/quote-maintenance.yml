@@ -127,9 +127,20 @@ jobs:
           out.append("Total runway: **%s** (threshold %s)" % (s.get("total_runway"), s.get("min_runway")))
           out.append("Quotes added this run: %s" % s.get("quotes_added"))
           out.append("Promoted: %s" % (", ".join(s.get("promoted") or []) or "nobody"))
+          out.append("Groq calls: %s of %s" % (s.get("calls_used"), s.get("call_budget")))
+          if s.get("rate_limited"):
+              out.append("")
+              out.append("**Groq quota was exhausted mid-run** (free tier is 200k tokens/day).")
+              out.append("The run stopped early and kept what it had generated. Lower")
+              out.append("--max-calls, or spread the sweep across more days.")
           out.append("")
           out.append("## Out of fresh quotes")
           out.extend("- " + n for n in starved)
+          tapped = s.get("tapped_out") or []
+          if tapped:
+              out.append("")
+              out.append("## Tapped out (still hold quotes, but produce no new ones)")
+              out.extend("- " + n for n in tapped)
           out.append("")
           out.append("These republish an earlier quote via LRU spaced replay until restocked.")
           out.append("")
@@ -144,6 +155,8 @@ jobs:
           if [ -s starved.flag ]; then
             NAMES=$(python -c "import json;print(', '.join(json.load(open('runs/pool_status.json'))['starved']))")
             notify "Quote pool starving: $NAMES" issue_body.md
+          elif python -c "import json,sys; sys.exit(0 if json.load(open('runs/pool_status.json')).get('rate_limited') else 1)"; then
+            notify "Quote pool: Groq quota exhausted mid-run" issue_body.md
           else
             echo "Pool healthy - nothing to report."
           fi
