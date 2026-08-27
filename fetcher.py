@@ -299,9 +299,8 @@ def fetch_slogan(quote: str, philosopher: str) -> str:
     try:
         from groq import Groq
         import models
-        client = models.get_client()
         resp = models.chat(
-            client, models.FAST,
+            models.FAST,
             messages=[
                 {"role": "system", "content": _SLOGAN_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Philosopher: {philosopher}\nQuote: {quote}\n\nSlogan:"},

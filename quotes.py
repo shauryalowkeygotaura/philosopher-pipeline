@@ -363,9 +363,8 @@ def classify_theme(quote: str, philosopher: str = "") -> str:
     if not models.api_keys():
         return _keyword_theme(quote)
     try:
-        client = models.get_client()
         resp = models.chat(
-            client, models.FAST,
+            models.FAST,
             messages=[
                 {
                     "role": "system",
@@ -552,9 +551,8 @@ def _verify_once(
     """
     numbered = "\n".join(f"{i}. {q}" for i, q in enumerate(candidates, 1))
     try:
-        client = models.get_client()
         resp = models.chat(
-            client, models.SMART,
+            models.SMART,
             messages=[
                 {"role": "system", "content": _VERIFY_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Thinker: {philosopher}\n\n{numbered}"},
@@ -693,9 +691,8 @@ def request_candidates(
     parts.append(f"Return up to {n} quotes as JSON.")
 
     try:
-        client = models.get_client()
         resp = models.chat(
-            client, models.SMART,
+            models.SMART,
             messages=[
                 {"role": "system", "content": _GENERATE_SYSTEM_PROMPT},
                 {"role": "user", "content": "\n\n".join(parts)},
