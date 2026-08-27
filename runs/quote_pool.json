@@ -229,6 +229,12 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-08-27"
+    },
+    {
+      "quote": "He who fights with monsters must be careful lest he become a monster.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "simone de beauvoir": [
@@ -499,6 +505,48 @@
       "theme": "desire",
       "source": "groq",
       "added": "2026-08-07"
+    },
+    {
+      "quote": "Freedom is what you do with what has been done to you.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "Man is condemned to be free, and he is free to be condemned.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The world is not a place to be found, but a place to be made.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The only thing that can be said of a man is that he is a man, and that he is free.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "Man is condemned to be free, and he is free to choose his own destiny.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "Time is a kind of horizon of our being.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The future is a thing that is not yet.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "blaise pascal": [
@@ -549,6 +597,62 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-08-08"
+    }
+  ],
+  "seneca": [
+    {
+      "quote": "It is not the man who has a short life, but the man who wastes it.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "We are more often frightened than hurt; and we suffer more in imagination than in reality.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "It is not that we have a short time to live, but that we waste a lot of it.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The greatest obstacle to living is expectancy, which hangs upon tomorrow and loses today.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "We are not short of time; we are short of living.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "No man is more unhappy than he who thinks he is unhappy.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "To be angry at others is to be angry at yourself.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "It is not the man who has too little, but the man who is greedy.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The greatest wealth is to live content with little.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ]
 }

@@ -13,3 +13,4 @@
 - Jean-Paul Sartre
 - Blaise Pascal
 - Seneca
+- Epictetus

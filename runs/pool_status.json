@@ -1,31 +1,40 @@
 {
-  "checked_at": "2026-08-27T08:57:14Z",
-  "total_runway": 65,
+  "checked_at": "2026-08-27T16:06:11Z",
+  "total_runway": 82,
   "min_runway": 40,
-  "quotes_added": 0,
-  "promoted": [],
+  "quotes_added": 17,
+  "promoted": [
+    "Epictetus"
+  ],
   "starved": [
-    "Seneca"
+    "Epictetus"
   ],
   "tapped_out": [
-    "Albert Camus"
+    "Fyodor Dostoevsky",
+    "Søren Kierkegaard",
+    "Albert Camus",
+    "Simone de Beauvoir",
+    "Franz Kafka",
+    "Arthur Schopenhauer",
+    "Blaise Pascal"
   ],
-  "rate_limited": true,
-  "calls_used": 9,
+  "rate_limited": false,
+  "calls_used": 60,
   "call_budget": 60,
   "per_philosopher": {
-    "Albert Camus": 5,
+    "Seneca": 9,
+    "Jean-Paul Sartre": 8,
     "Fyodor Dostoevsky": 4,
-    "Franz Kafka": 6,
-    "Voltaire": 8,
-    "Friedrich Nietzsche": 4,
-    "Simone de Beauvoir": 5,
+    "Friedrich Nietzsche": 5,
     "Søren Kierkegaard": 4,
+    "Albert Camus": 5,
+    "Simone de Beauvoir": 5,
+    "Franz Kafka": 6,
     "Arthur Schopenhauer": 6,
+    "Blaise Pascal": 6,
+    "Voltaire": 8,
     "Marcus Aurelius": 8,
     "Immanuel Kant": 8,
-    "Jean-Paul Sartre": 1,
-    "Blaise Pascal": 6,
-    "Seneca": 0
+    "Epictetus": 0
   }
 }
