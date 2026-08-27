@@ -360,13 +360,10 @@ def classify_theme(quote: str, philosopher: str = "") -> str:
     returns a member of THEMES so a bad model response can never poison the
     bandit's arm space with an unknown arm.
     """
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
+    if not models.api_keys():
         return _keyword_theme(quote)
     try:
-        from groq import Groq
-
-        client = Groq(api_key=api_key)
+        client = models.get_client()
         resp = models.chat(
             client, models.FAST,
             messages=[
@@ -555,9 +552,7 @@ def _verify_once(
     """
     numbered = "\n".join(f"{i}. {q}" for i, q in enumerate(candidates, 1))
     try:
-        from groq import Groq
-
-        client = Groq(api_key=os.environ["GROQ_API_KEY"])
+        client = models.get_client()
         resp = models.chat(
             client, models.SMART,
             messages=[
@@ -648,8 +643,8 @@ def verify_quotes(
 
     if not candidates:
         return []
-    if not os.environ.get("GROQ_API_KEY"):
-        return _unavailable("GROQ_API_KEY missing")
+    if not models.api_keys():
+        return _unavailable("no Groq API key configured")
 
     n_votes = max(1, votes)
     # Single vote wants determinism; only multi-vote needs sampling jitter to
@@ -684,8 +679,7 @@ def request_candidates(
     network boundary so the filtering/verification logic around it is testable
     without mocking the Groq SDK. Never raises.
     """
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
+    if not models.api_keys():
         log.warning("request_candidates: GROQ_API_KEY missing; cannot extend pool.")
         return []
 
@@ -699,9 +693,7 @@ def request_candidates(
     parts.append(f"Return up to {n} quotes as JSON.")
 
     try:
-        from groq import Groq
-
-        client = Groq(api_key=api_key)
+        client = models.get_client()
         resp = models.chat(
             client, models.SMART,
             messages=[

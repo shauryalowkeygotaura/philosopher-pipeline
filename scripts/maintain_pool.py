@@ -154,10 +154,14 @@ def main() -> int:
     for noisy in ("httpx", "groq", "urllib3"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    if not os.environ.get("GROQ_API_KEY"):
-        log.error("GROQ_API_KEY is not set; cannot generate quotes. "
+    if not quotes.models.api_keys():
+        log.error("No Groq API key configured; cannot generate quotes. "
+                  "Set GROQ_API_KEY (and optionally GROQ_API_KEY_2..4 from "
+                  "OTHER Groq accounts for more daily quota). "
                   "Run under: doppler run -- python scripts/maintain_pool.py")
         return 1
+    quotes.models.reset_keys()
+    log.info("Groq keys configured: %d", len(quotes.models.api_keys()))
 
     try:
         state = json.loads((_ROOT / "state.json").read_text(encoding="utf-8"))

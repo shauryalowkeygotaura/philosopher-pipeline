@@ -4,7 +4,7 @@ models.py -- one place that knows which Groq models exist.
 WHY THIS EXISTS
 ---------------
 On 2026-08-26 Groq removed the entire Llama line from this account.
-`qwen/qwen3.8-27b` and `llama-3.1-8b-instant` both started returning
+`llama-3.3-70b-versatile` and `llama-3.1-8b-instant` both started returning
 404 model_not_found, and because every call site caught the exception and fell
 back to a hardcoded default, nothing broke loudly:
 
@@ -22,6 +22,15 @@ hardcoded string. `chat()` walks the tier's chain and only gives up when every
 model 404s, so the next removal costs a log line rather than three weeks of
 identical slogans.
 
+MULTIPLE KEYS = MULTIPLE QUOTAS
+-------------------------------
+Groq meters per ORGANISATION, not per key, so extra keys minted from the same
+account share one 200k/day ceiling and buy nothing. Keys from a DIFFERENT Groq
+account each carry their own quota, and those do add up. `chat()` rotates to
+the next key when the current one hits its DAILY cap (never on a per-minute
+throttle -- that just needs a short wait, and burning a fresh key on it wastes
+the very capacity the extra key was for).
+
 TOKEN FLOOR
 -----------
 The gpt-oss models emit reasoning tokens before their visible answer. A budget
@@ -38,6 +47,67 @@ import time
 from typing import Any, Sequence
 
 log = logging.getLogger(__name__)
+
+# Env vars holding Groq keys, in the order they are tried. Each should come
+# from a DIFFERENT Groq account; same-account keys share one quota.
+KEY_VARS = ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEY_4")
+
+# Index of the key currently in use. Module-level so one exhausted key is not
+# retried by every subsequent call in the same run.
+_key_index = 0
+
+
+def api_keys() -> list[str]:
+    """Every configured key, in priority order, de-duplicated.
+
+    Accepts either the numbered vars in KEY_VARS or a comma-separated
+    GROQ_API_KEYS. Duplicates are dropped: the same key twice would look like
+    added capacity and silently is not.
+    """
+    import os
+
+    found: list[str] = []
+    bulk = os.environ.get("GROQ_API_KEYS", "")
+    for raw in bulk.split(","):
+        k = raw.strip()
+        if k and k not in found:
+            found.append(k)
+    for var in KEY_VARS:
+        k = (os.environ.get(var) or "").strip()
+        if k and k not in found:
+            found.append(k)
+    return found
+
+
+def _make_client(key: str) -> Any:
+    from groq import Groq
+    return Groq(api_key=key)
+
+
+def get_client() -> Any:
+    """A Groq client on the current key. Raises if none are configured."""
+    keys = api_keys()
+    if not keys:
+        raise RuntimeError("no Groq API key configured (set GROQ_API_KEY)")
+    return _make_client(keys[min(_key_index, len(keys) - 1)])
+
+
+def _rotate_key() -> bool:
+    """Advance to the next configured key. False when none are left."""
+    global _key_index
+    keys = api_keys()
+    if _key_index + 1 >= len(keys):
+        return False
+    _key_index += 1
+    log.warning("models: daily quota spent; switching to key %d of %d.",
+                _key_index + 1, len(keys))
+    return True
+
+
+def reset_keys() -> None:
+    """Start again from the first key (new run, or tests)."""
+    global _key_index
+    _key_index = 0
 
 # Quote recall and attribution verification, where a wrong answer publishes a
 # fabricated quotation under a real person's name.
@@ -164,13 +234,20 @@ def chat(
                     log.warning(
                         "models.chat: %s returned empty content (likely spent the "
                         "budget reasoning); trying the next in the chain.", model)
-                    continue
+                    # break, NOT continue: `continue` belongs to the retry loop
+                    # and would re-ask the same model forever.
+                    break
             return resp
         except Exception as e:  # noqa: BLE001 - inspected, then re-raised
             if _is_missing_model(e):
                 log.warning("models.chat: %s is gone; trying the next in the chain.", model)
                 last = e
                 break  # next model in the chain
+            # A spent DAILY quota is what spare keys exist for. Rotate and
+            # retry the same model; only give up when every key is spent.
+            if is_throttle(e) and is_daily_limit(e) and _rotate_key():
+                client = get_client()
+                continue
             # A per-minute throttle is not a failure, it is backpressure.
             if (is_throttle(e) and not is_daily_limit(e)
                     and attempt < MAX_THROTTLE_RETRIES):
