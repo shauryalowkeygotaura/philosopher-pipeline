@@ -51,6 +51,7 @@ from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import bandit
+import models
 
 log = logging.getLogger(__name__)
 
@@ -355,8 +356,8 @@ def classify_theme(quote: str, philosopher: str = "") -> str:
         from groq import Groq
 
         client = Groq(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+        resp = models.chat(
+            client, models.FAST,
             messages=[
                 {
                     "role": "system",
@@ -535,8 +536,8 @@ def _verify_once(
         from groq import Groq
 
         client = Groq(api_key=os.environ["GROQ_API_KEY"])
-        resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        resp = models.chat(
+            client, models.SMART,
             messages=[
                 {"role": "system", "content": _VERIFY_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Thinker: {philosopher}\n\n{numbered}"},
@@ -677,8 +678,8 @@ def request_candidates(
         from groq import Groq
 
         client = Groq(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        resp = models.chat(
+            client, models.SMART,
             messages=[
                 {"role": "system", "content": _GENERATE_SYSTEM_PROMPT},
                 {"role": "user", "content": "\n\n".join(parts)},
@@ -711,9 +712,10 @@ def generate_quotes(
     theme: str,
     exemplars: Sequence[str] = (),
     avoid: set[str] | None = None,
-    # Verifier recall is ~50% BY DESIGN (see verify_quotes). Yield is raised
-    # by asking for more candidates, never by loosening the attribution gate.
-    n: int = 12,
+    # Verifier recall is intentionally low (39% on the current model, see
+    # models.SMART). Yield is raised by asking for more candidates, never by
+    # loosening the attribution gate.
+    n: int = 16,
     verify: bool = True,
 ) -> list[dict[str, Any]]:
     """Ask Groq for fresh documented quotes on `theme`, steered by `exemplars`.

@@ -298,13 +298,17 @@ def fetch_slogan(quote: str, philosopher: str) -> str:
         return fallback
     try:
         from groq import Groq
+        import models
         client = Groq(api_key=api_key)
-        resp = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+        resp = models.chat(
+            client, models.FAST,
             messages=[
                 {"role": "system", "content": _SLOGAN_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Philosopher: {philosopher}\nQuote: {quote}\n\nSlogan:"},
             ],
+            # An empty answer here used to ship the hardcoded fallback line,
+            # which is how 13 of 23 reels published the same punchline.
+            require_content=True,
             max_tokens=24,
             temperature=0.85,
         )
