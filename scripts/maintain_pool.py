@@ -110,6 +110,9 @@ def main() -> int:
                     help="promote a new philosopher when TOTAL runway is below this")
     ap.add_argument("--max-promotions", type=int, default=1,
                     help="cap on philosophers promoted in a single run")
+    ap.add_argument("--max-tapped-share", type=float, default=0.25,
+                    help="promote when this share of the roster produced "
+                         "nothing, even if total runway looks healthy")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--sleep", type=float, default=0.4)
     args = ap.parse_args()
@@ -132,6 +135,12 @@ def main() -> int:
     active = parse_philosophers(_ROOT / "philosophers.md")
     added_total = 0
     promoted: list[str] = []
+    # Philosophers the generator can no longer produce anything for. Tracked
+    # separately from `starved` (runway 0) because a thinker can be TAPPED OUT
+    # while still holding a few unpublished quotes: Sartre on 2026-08-27 kept
+    # 0 of 31 candidates across three themes at runway 1. Aggregate runway hid
+    # it completely.
+    tapped: list[str] = []
 
     # --- 1/2. measure and top up ------------------------------------------
     for philosopher in active:
@@ -143,8 +152,11 @@ def main() -> int:
         got = stock(philosopher, state, target=args.target,
                     sleep=args.sleep, dry_run=args.dry_run)
         added_total += got
-        log.info("%-24s runway=%-3d (+%d)", philosopher,
-                 runway(philosopher, state, quotes.load_pool()), got)
+        if got == 0:
+            tapped.append(philosopher)
+        log.info("%-24s runway=%-3d (+%d)%s", philosopher,
+                 runway(philosopher, state, quotes.load_pool()), got,
+                 "  TAPPED OUT" if got == 0 else "")
 
     pool = quotes.load_pool()
     total = sum(runway(p, state, pool) for p in active)
@@ -153,7 +165,19 @@ def main() -> int:
              len(active), total, args.min_runway)
 
     # --- 3. promote when the existing roster cannot carry the load --------
-    while (total < args.min_runway
+    # Two independent triggers. Aggregate runway catches a roster that is
+    # draining evenly; the tapped-out count catches one that is dying unevenly,
+    # where a few productive thinkers mask several dead ones and the total only
+    # collapses once it is already too late.
+    tapped_out_share = len(tapped) / max(1, len(active))
+    if tapped and tapped_out_share >= args.max_tapped_share:
+        log.warning(
+            "%d of %d philosophers produced nothing this run (%s). Aggregate "
+            "runway is %d, but it is propped up by the rest and will decay.",
+            len(tapped), len(active), ", ".join(tapped), total)
+
+    while ((total < args.min_runway
+            or (tapped and tapped_out_share >= args.max_tapped_share))
            and len(promoted) < args.max_promotions):
         bench = roster.available(active)
         if not bench:
@@ -161,7 +185,10 @@ def main() -> int:
                       "to roster.CANDIDATES.", total)
             break
         pick = bench[0]
-        log.info("runway %d < %d: promoting %s", total, args.min_runway, pick)
+        reason = (f"total runway {total} < {args.min_runway}"
+                  if total < args.min_runway
+                  else f"{len(tapped)}/{len(active)} philosophers tapped out")
+        log.info("promoting %s (%s)", pick, reason)
         if args.dry_run:
             log.info("  --dry-run: would promote %s", pick)
             promoted.append(pick)
@@ -189,6 +216,7 @@ def main() -> int:
         "quotes_added": added_total,
         "promoted": promoted,
         "starved": starved,
+        "tapped_out": tapped,
         "per_philosopher": per_philosopher,
     }
     if not args.dry_run:
@@ -200,9 +228,9 @@ def main() -> int:
             log.warning("could not write %s: %s", STATUS_PATH, e)
 
     log.info("")
-    log.info("added %d quotes; promoted %s; runway %d; starved %s",
+    log.info("added %d quotes; promoted %s; runway %d; starved %s; tapped out %s",
              added_total, promoted or "nobody", status["total_runway"],
-             starved or "nobody")
+             starved or "nobody", tapped or "nobody")
     if starved:
         # Non-fatal: the LRU floor still ships a reel. The workflow turns this
         # into a GitHub issue so a starving pool cannot go unnoticed the way
