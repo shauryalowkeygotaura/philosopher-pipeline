@@ -211,6 +211,12 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "The most beautiful thing we can experience is the mysterious.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "simone de beauvoir": [
@@ -387,6 +393,18 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-08-08"
+    },
+    {
+      "quote": "It is not death that a man should fear, but he should fear never living.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "If it is not right, do not do it; if it is not true, do not say it.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "immanuel kant": [
@@ -437,6 +455,18 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-08"
+    },
+    {
+      "quote": "All our knowledge begins with experience, but it does not arise from experience.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-27"
+    },
+    {
+      "quote": "The idea of time is a necessary condition of all our experience.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-27"
     }
   ],
   "jean-paul sartre": [

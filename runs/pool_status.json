@@ -1,22 +1,22 @@
 {
-  "checked_at": "2026-08-08T17:10:17Z",
-  "total_runway": 81,
+  "checked_at": "2026-08-27T04:02:53Z",
+  "total_runway": 63,
   "min_runway": 40,
-  "quotes_added": 13,
+  "quotes_added": 5,
   "promoted": [],
   "starved": [],
   "per_philosopher": {
-    "Albert Camus": 6,
-    "Fyodor Dostoevsky": 6,
-    "Franz Kafka": 8,
-    "Voltaire": 9,
-    "Friedrich Nietzsche": 5,
-    "Simone de Beauvoir": 6,
-    "Søren Kierkegaard": 6,
-    "Arthur Schopenhauer": 8,
+    "Albert Camus": 4,
+    "Fyodor Dostoevsky": 4,
+    "Franz Kafka": 6,
+    "Voltaire": 7,
+    "Friedrich Nietzsche": 4,
+    "Simone de Beauvoir": 5,
+    "Søren Kierkegaard": 4,
+    "Arthur Schopenhauer": 6,
     "Marcus Aurelius": 8,
     "Immanuel Kant": 8,
-    "Jean-Paul Sartre": 3,
-    "Blaise Pascal": 8
+    "Jean-Paul Sartre": 1,
+    "Blaise Pascal": 6
   }
 }
