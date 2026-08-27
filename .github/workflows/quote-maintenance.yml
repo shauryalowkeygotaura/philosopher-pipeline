@@ -55,6 +55,11 @@ jobs:
       - name: Top up the quote pool
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          # Keys from OTHER Groq accounts. Groq meters per
+          # organisation, so only a different account adds quota.
+          # Unset secrets expand to empty and are ignored.
+          GROQ_API_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
+          GROQ_API_KEY_3: ${{ secrets.GROQ_API_KEY_3 }}
         run: |
           # Last run's pool_status.json is committed to the repo. If this step
           # crashes, a stale file would let the report step below announce
