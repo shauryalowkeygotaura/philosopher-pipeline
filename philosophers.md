@@ -14,3 +14,4 @@
 - Blaise Pascal
 - Seneca
 - Epictetus
+- Michel de Montaigne

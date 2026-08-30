@@ -41,6 +41,18 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-08-27"
+    },
+    {
+      "quote": "The absurd is the condition of the human being who is aware of the futility of his existence.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-08-30"
+    },
+    {
+      "quote": "The only thing that can save us from the absurd is a revolt.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-08-30"
     }
   ],
   "fyodor dostoevsky": [
@@ -653,6 +665,12 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-08-27"
+    },
+    {
+      "quote": "It is not that we have a short time, but that we waste much.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-08-30"
     }
   ]
 }

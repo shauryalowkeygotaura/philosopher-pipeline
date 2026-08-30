@@ -1,18 +1,20 @@
 {
-  "checked_at": "2026-08-27T16:06:11Z",
-  "total_runway": 82,
+  "checked_at": "2026-08-30T09:54:56Z",
+  "total_runway": 80,
   "min_runway": 40,
-  "quotes_added": 17,
+  "quotes_added": 3,
   "promoted": [
-    "Epictetus"
+    "Michel de Montaigne"
   ],
   "starved": [
-    "Epictetus"
+    "Epictetus",
+    "Michel de Montaigne"
   ],
   "tapped_out": [
+    "Epictetus",
     "Fyodor Dostoevsky",
     "Søren Kierkegaard",
-    "Albert Camus",
+    "Friedrich Nietzsche",
     "Simone de Beauvoir",
     "Franz Kafka",
     "Arthur Schopenhauer",
@@ -22,12 +24,12 @@
   "calls_used": 60,
   "call_budget": 60,
   "per_philosopher": {
-    "Seneca": 9,
-    "Jean-Paul Sartre": 8,
+    "Epictetus": 0,
     "Fyodor Dostoevsky": 4,
-    "Friedrich Nietzsche": 5,
     "Søren Kierkegaard": 4,
-    "Albert Camus": 5,
+    "Seneca": 5,
+    "Albert Camus": 7,
+    "Friedrich Nietzsche": 5,
     "Simone de Beauvoir": 5,
     "Franz Kafka": 6,
     "Arthur Schopenhauer": 6,
@@ -35,6 +37,7 @@
     "Voltaire": 8,
     "Marcus Aurelius": 8,
     "Immanuel Kant": 8,
-    "Epictetus": 0
+    "Jean-Paul Sartre": 8,
+    "Michel de Montaigne": 0
   }
 }
