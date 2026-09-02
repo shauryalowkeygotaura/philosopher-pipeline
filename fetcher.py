@@ -284,14 +284,32 @@ Good examples:
   Slogan: Look inward or you will never arrive"""
 
 
-def fetch_slogan(quote: str, philosopher: str) -> str:
-    """Return a 4-7 word climax slogan for the kinetic reel.
+# The channel's fixed closing line. Shaurya has asked for this twice, so it is a
+# CONSTANT, not a default: every reel ends on the same words.
+#
+# It used to be generated per reel by Groq, with this phrase only as the failure
+# fallback, which meant the brand line changed every upload and the one line a
+# viewer could learn to recognise was the one line that never repeated. A fixed
+# closing line is the point of a closing line.
+BRAND_SLOGAN = "Truth is found alone in the dark"
 
-    On any failure (missing key, network, malformed output) returns a sane
-    fallback so the pipeline keeps rendering instead of aborting the reel.
+
+def fetch_slogan(quote: str, philosopher: str) -> str:
+    """The channel's fixed closing slogan.
+
+    Returns BRAND_SLOGAN unconditionally. The per-reel generator below is kept
+    for reference and is deliberately unreachable: set nothing, change nothing,
+    and every reel closes the same way. Reinstating variation means deleting the
+    early return, not flipping a flag - a disabled flag is how this drifted in
+    the first place.
     """
+    return BRAND_SLOGAN
+
+
+def _fetch_slogan_generated(quote: str, philosopher: str) -> str:
+    """Former per-reel slogan generation. Retained, not called. See BRAND_SLOGAN."""
     import os
-    fallback = "Truth is found alone in the dark"
+    fallback = BRAND_SLOGAN
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         log.warning("fetch_slogan: GROQ_API_KEY missing; using fallback")
