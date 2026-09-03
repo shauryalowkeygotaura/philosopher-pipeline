@@ -180,3 +180,65 @@ def pick_hook(
         entries=entries,
         epsilon=epsilon,
     )
+
+
+def loop_status(arms: Sequence[str] | None = None, entries=None) -> dict:
+    """Is the bandit actually learning, or still round-robinning?
+
+    This exists because it was not obvious that it was not. The bandit is well
+    built - phased, deterministic, safe by default - and it has spent its entire
+    life in Phase 1, because no ledger row ever received a reward:
+    live_insights_enabled() is off by default and insights.refresh_pending() is
+    never auto-invoked. A mechanism that silently does nothing looks exactly
+    like a mechanism that works.
+
+    Same check as format-engine's feedback.status(). Cheap, local, no network.
+    """
+    rows = entries if entries is not None else ledger.load_entries()
+    # Arms are passed in rather than imported: HOOKS lives in pipeline.py, and
+    # importing it here would make bandit depend on the module that depends on
+    # bandit. With no arms given, count reward-bearing rows directly - the
+    # question "is anything learning" does not need the arm list to answer.
+    # Rewards present in the ledger REGARDLESS of which arm they belong to.
+    # The gap between this and `observed` is the whole diagnostic: 134 rewards
+    # that match no current arm look identical to no rewards at all.
+    total_rewards = sum(1 for r in rows if isinstance(r, dict)
+                        and reward(r.get("insights")) is not None)
+    if arms:
+        stats = arm_stats(arms, entries=rows)
+        observed = sum(s.get("n", 0) for s in stats.values())
+        arms_with_data = sum(1 for s in stats.values() if s.get("n", 0) > 0)
+    else:
+        observed = total_rewards
+        arms_with_data = len({r.get("hook") for r in rows
+                              if isinstance(r, dict)
+                              and reward(r.get("insights")) is not None})
+    # Which hook texts actually appear in the ledger, so a mismatch is visible
+    # rather than showing up as a silent zero.
+    seen = sorted({(r.get("hook") or "")[:38] for r in rows
+                   if isinstance(r, dict) and r.get("hook")})[:5]
+    return {
+        "ledger_rows": len(rows),
+        "ledger_hook_samples": seen,
+        "reward_observations": observed,
+        "arms_with_data": arms_with_data,
+        "live_insights_enabled": live_insights_enabled(),
+        "phase": 2 if observed else 1,
+        "rewards_in_ledger": total_rewards,
+        "verdict": ("learning" if observed else
+                    f"ORPHANED - the ledger holds {total_rewards} reward rows and "
+                    "NONE match a hook in the current list, so none of them count. "
+                    "The hook wording changed after those posts, and a bandit keyed "
+                    "on exact text cannot connect the two. Learning restarts from "
+                    "zero unless the old wording is restored."
+                    if total_rewards else
+                    "ORPHANED - the ledger HAS rewards, but none belong to an arm "
+                    "in the current list, so none of them count. The hook text "
+                    "changed after those posts were made. Either restore the old "
+                    "wording or accept that learning restarts from zero."
+                    if observed and not arms else
+                    "OPEN - Phase 1 round-robin. No reward rows, so the bandit "
+                    "picks in rotation and no arm is ever preferred. Restore "
+                    "Instagram auth, set PHILOSOPHER_LIVE_INSIGHTS=1, then run "
+                    "insights.refresh_pending() a few days after posting."),
+    }
