@@ -375,3 +375,99 @@ def test_fetch_portraits_falls_back_to_cache_on_error(tmp_path):
     with patch("fetcher.requests.get", side_effect=Exception("network down")):
         result = fetch_portraits("Voltaire", count=2, used_portraits=[], cache_dir=tmp_path)
         assert any("portrait-voltaire-deadbeef00" in p for p in result)
+
+
+# Closing-slogan tests
+#
+# 2026-09-03: the slogan was briefly frozen to one constant string, so every
+# published reel closed on "Truth is found alone in the dark". That repetition
+# was the BUG, not the brand. These tests pin the two properties that matter:
+# the line is generated per reel, and NO code path returns a fixed line.
+
+def _slogan_resp(text):
+    resp = MagicMock()
+    resp.choices = [MagicMock()]
+    resp.choices[0].message.content = text
+    return resp
+
+
+def test_fetch_slogan_is_generated_per_reel(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    import models
+    monkeypatch.setattr(
+        models, "chat",
+        lambda *a, **kw: _slogan_resp("Carry the why, the how follows"),
+    )
+    from fetcher import fetch_slogan
+    assert fetch_slogan("q", "Voltaire") == "Carry the why, the how follows"
+
+
+def test_fetch_slogan_varies_with_the_quote(monkeypatch):
+    """Two different quotes must be able to produce two different closers."""
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    import models
+    seen = []
+
+    def fake_chat(*a, **kw):
+        user = kw["messages"][-1]["content"]
+        seen.append(user)
+        return _slogan_resp("Line %d holds the dark" % len(seen))
+
+    monkeypatch.setattr(models, "chat", fake_chat)
+    from fetcher import fetch_slogan
+    a = fetch_slogan("quote one", "Voltaire")
+    b = fetch_slogan("quote two", "Kafka")
+    assert a != b
+    assert "quote one" in seen[0] and "quote two" in seen[1]
+
+
+def test_fetch_slogan_raises_instead_of_shipping_a_constant(monkeypatch):
+    """Generation failure must abort the reel, never publish a stock line.
+
+    A silent fallback here is exactly how one hardcoded phrase reached 13 of
+    23 uploads.
+    """
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    import models
+    def boom(*a, **kw):
+        raise RuntimeError("groq down")
+    monkeypatch.setattr(models, "chat", boom)
+    from fetcher import fetch_slogan
+    with pytest.raises(RuntimeError):
+        fetch_slogan("q", "Voltaire")
+
+
+def test_fetch_slogan_raises_on_missing_key(monkeypatch):
+    """No key means no reel, not a stock line."""
+    import models
+    monkeypatch.setattr(models, "api_keys", lambda: [])
+    from fetcher import fetch_slogan
+    with pytest.raises(RuntimeError):
+        fetch_slogan("q", "Voltaire")
+
+
+def test_fetch_slogan_rejects_overlong_output(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    import models
+    monkeypatch.setattr(
+        models, "chat",
+        lambda *a, **kw: _slogan_resp(" ".join(["word"] * 30)),
+    )
+    from fetcher import fetch_slogan
+    with pytest.raises(RuntimeError):
+        fetch_slogan("q", "Voltaire")
+
+
+def test_no_frozen_brand_slogan_constant():
+    """The frozen constant must not come back through any module."""
+    import fetcher
+    assert not hasattr(fetcher, "BRAND_SLOGAN")
+    src = Path(fetcher.__file__).with_name("composer.py").read_text(encoding="utf-8")
+    assert "Truth is found alone in the dark" not in src
+
+
+def test_composer_requires_an_explicit_slogan():
+    """compose_kinetic_v2 must not invent a default closing line."""
+    from composer import compose_kinetic_v2
+    with pytest.raises(ValueError):
+        compose_kinetic_v2(["img.jpg"], "q", "Voltaire", "out.mp4", "font.ttf")

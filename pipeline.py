@@ -339,10 +339,20 @@ def main(upload_now=True, single=False, generate_only=False):
             STYLE if STYLE == "kinetic" else ("beat-synced" if USE_BEAT_SYNC else "fast-cut"),
         )
         slogan = None
+        if STYLE == "kinetic":
+            # fetch_slogan raises rather than returning a stock line, so a
+            # failure here skips the reel. That is deliberate: shipping one
+            # identical closing line on every upload is the defect.
+            try:
+                slogan = fetch_slogan(quote, philosopher)
+            except Exception as e:
+                log.warning("  Slogan generation failed for %s: %s, skipping.",
+                            philosopher, e)
+                continue
+            log.info("  Slogan: %s", slogan)
+
         try:
             if STYLE == "kinetic":
-                slogan = fetch_slogan(quote, philosopher)
-                log.info("  Slogan: %s", slogan)
                 compose_kinetic_v2(
                     frames, quote, philosopher,
                     mp4_path, str(FONT_PATH),

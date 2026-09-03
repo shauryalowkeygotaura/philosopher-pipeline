@@ -284,62 +284,58 @@ Good examples:
   Slogan: Look inward or you will never arrive"""
 
 
-# The channel's fixed closing line. Shaurya has asked for this twice, so it is a
-# CONSTANT, not a default: every reel ends on the same words.
+# The closing line is GENERATED PER REEL. There is deliberately NO module-level
+# constant to fall back on.
 #
-# It used to be generated per reel by Groq, with this phrase only as the failure
-# fallback, which meant the brand line changed every upload and the one line a
-# viewer could learn to recognise was the one line that never repeated. A fixed
-# closing line is the point of a closing line.
-BRAND_SLOGAN = "Truth is found alone in the dark"
-
-
+# History, because this broke twice in opposite directions:
+#   1. The generator returned a hardcoded string on any failure, and reasoning
+#      models answer 200 OK with empty content when they spend max_tokens
+#      thinking. That shipped one identical closing line on 13 of 23 uploads.
+#   2. The "fix" froze that same string as a brand constant, which made the
+#      repetition permanent instead of accidental.
+#
+# Both produced the same visible defect: every reel ending on the same words.
+# So there is no stock line to leak. If a fresh line cannot be generated the
+# reel is skipped (pipeline.py catches this and moves on). A missed reel is
+# recoverable; a channel whose every reel closes identically is the bug.
 def fetch_slogan(quote: str, philosopher: str) -> str:
-    """The channel's fixed closing slogan.
+    """Return a fresh 4-7 word climax slogan for this reel's quote.
 
-    Returns BRAND_SLOGAN unconditionally. The per-reel generator below is kept
-    for reference and is deliberately unreachable: set nothing, change nothing,
-    and every reel closes the same way. Reinstating variation means deleting the
-    early return, not flipping a flag - a disabled flag is how this drifted in
-    the first place.
+    Raises RuntimeError when generation fails or returns something unusable.
+    Never returns a canned string - see the note above.
     """
-    return BRAND_SLOGAN
+    import models
 
+    if not models.api_keys():
+        raise RuntimeError(
+            "fetch_slogan: no Groq key in the environment "
+            f"({', '.join(models.KEY_VARS)}); cannot generate a closing line")
 
-def _fetch_slogan_generated(quote: str, philosopher: str) -> str:
-    """Former per-reel slogan generation. Retained, not called. See BRAND_SLOGAN."""
-    import os
-    fallback = BRAND_SLOGAN
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        log.warning("fetch_slogan: GROQ_API_KEY missing; using fallback")
-        return fallback
     try:
-        from groq import Groq
-        import models
         resp = models.chat(
             models.FAST,
             messages=[
                 {"role": "system", "content": _SLOGAN_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Philosopher: {philosopher}\nQuote: {quote}\n\nSlogan:"},
             ],
-            # An empty answer here used to ship the hardcoded fallback line,
-            # which is how 13 of 23 reels published the same punchline.
+            # A model that answers 200 OK with an empty message must advance
+            # the chain, not hand the call site a blank to paper over.
             require_content=True,
-            max_tokens=24,
+            # Floored to groq_pool.MIN_MAX_TOKENS anyway; stated here so the
+            # reasoning budget is visible at the call site. The old value (24)
+            # is what starved these models into empty answers.
+            max_tokens=500,
             temperature=0.85,
         )
-        raw = (resp.choices[0].message.content or "").strip()
-        raw = raw.strip('"').strip("'").rstrip(".").strip()
-        # Reject pathological outputs (LLM ignored the brevity instruction).
-        if not raw or len(raw.split()) > 9 or len(raw) > 80:
-            log.warning("fetch_slogan: bad output %r; using fallback", raw)
-            return fallback
-        log.info("fetch_slogan: %r", raw)
-        return raw
     except Exception as e:
-        log.warning("fetch_slogan: %s; using fallback", e)
-        return fallback
+        raise RuntimeError(f"fetch_slogan: generation failed ({e})") from e
+
+    raw = (resp.choices[0].message.content or "").strip()
+    raw = raw.strip('"').strip("'").rstrip(".").strip()
+    if not raw or len(raw.split()) > 9 or len(raw) > 80:
+        raise RuntimeError(f"fetch_slogan: unusable output {raw!r}")
+    log.info("fetch_slogan: %r", raw)
+    return raw
 
 
 def match_song(philosopher, quote, songs, used_in_run, used_for_philosopher):

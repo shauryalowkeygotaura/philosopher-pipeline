@@ -1622,10 +1622,11 @@ def compose_kinetic_v2(
 
     if not image_paths:
         raise ValueError("compose_kinetic_v2 requires at least one image")
-    if slogan is None:
-        # Matches fetcher.BRAND_SLOGAN. Kept literal here so the composer
-        # stays importable on its own without pulling in fetcher.
-        slogan = "Truth is found alone in the dark"
+    if not slogan:
+        # No default. A literal here is a second place for one stock closing
+        # line to leak into every reel, which is the defect this pipeline
+        # shipped for 13 of 23 uploads. Callers pass fetcher.fetch_slogan().
+        raise ValueError("compose_kinetic_v2 requires a slogan")
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

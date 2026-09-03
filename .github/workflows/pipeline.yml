@@ -116,9 +116,9 @@ jobs:
         env:
           INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
           INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
-          # Without this every reel ships the hardcoded slogan fallback
-          # ("Truth is found alone in the dark") — fetch_slogan() can only
-          # call Groq when the key is in the env (2026-06-10 fix).
+          # fetch_slogan() needs this: the closing line is generated per
+          # reel and there is no fallback string, so a missing key skips the
+          # reel outright rather than repeating one stock closer.
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           # Keys from OTHER Groq accounts. Groq meters per
           # organisation, so only a different account adds quota.
