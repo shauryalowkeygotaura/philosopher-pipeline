@@ -89,6 +89,19 @@ _PLACEHOLDER_KEY = re.compile(
 )
 
 
+# Second, structural test, because the word list above missed the very value
+# it was written for: autoshop's key is `paste_your_groq_key_here`, and
+# "groq" was not on the list. Enumerating words is brittle by nature - the
+# next template will contain some other noun.
+#
+# Real API keys carry entropy: every format in use (gsk_, sk-, AIza, xoxb-,
+# ghp_) contains digits, mixed case, or both. A value that is three or more
+# purely alphabetic segments joined by _ - . or space is prose, not a
+# credential. Three, not two, so a deliberate test double like `test-key`
+# still passes through and earns an honest 401.
+_WORDY_KEY = re.compile(r"^[A-Za-z]+(?:[_\-. ][A-Za-z]+){2,}$")
+
+
 def _usable_key(value: str, source: str) -> bool:
     """Drop template values; keep anything that might be a real credential.
 
@@ -105,7 +118,8 @@ def _usable_key(value: str, source: str) -> bool:
     if value.startswith("gsk_"):
         return True
     masked = (value[:4] + "...") if len(value) > 4 else "..."
-    if _PLACEHOLDER_KEY.fullmatch(value):
+    stripped = value.strip("<>[]{}()")
+    if _PLACEHOLDER_KEY.fullmatch(value) or _WORDY_KEY.fullmatch(stripped):
         log.warning("groq_pool: ignoring %s=%r - it is a placeholder, not a key.",
                     source, masked)
         return False
