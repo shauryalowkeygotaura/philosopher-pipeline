@@ -74,16 +74,56 @@ KEY_VARS = ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEY_4"
 _key_index = 0
 
 
+# A value that is ENTIRELY template words and separators, e.g.
+# "paste_your_key_here", "<YOUR_API_KEY>", "changeme", "xxx".
+#
+# Anchored with fullmatch on purpose. An unanchored search for "xxx" or
+# "example" would fire on those letters occurring by chance inside a real
+# credential's random body, and a key that vanishes silently is far worse to
+# debug than one that earns an honest 401. A real key contains segments that
+# are not in this word list, so it cannot fullmatch.
+_PLACEHOLDER_WORD = r"paste|your|api|key|token|secret|here|placeholder|changeme|change|replace|me|dummy|example|sample|todo|fixme|none|null|value|goes|insert|add|x+"
+_PLACEHOLDER_KEY = re.compile(
+    r"(?i)^[<\[{(]?(?:%s)(?:[_\-. ]?(?:%s))*[>\]})]?$"
+    % (_PLACEHOLDER_WORD, _PLACEHOLDER_WORD)
+)
+
+
+def _usable_key(value: str, source: str) -> bool:
+    """Drop template values; keep anything that might be a real credential.
+
+    autoshop has carried the literal `paste_your_key_here` in GROQ_API_KEY
+    since at least 2026-08. Nothing broke loudly, because the pool rotates past
+    a dead key - it just spent the first call of every run earning a 401 and
+    made every log open on a failure.
+
+    Deliberately NOT "must start with gsk_". That rule is tempting and wrong:
+    it would also discard a key routed through a Groq-compatible gateway. An
+    unrecognised value is therefore kept and flagged, and only a value that is
+    wholly a template is refused.
+    """
+    if value.startswith("gsk_"):
+        return True
+    masked = (value[:4] + "...") if len(value) > 4 else "..."
+    if _PLACEHOLDER_KEY.fullmatch(value):
+        log.warning("groq_pool: ignoring %s=%r - it is a placeholder, not a key.",
+                    source, masked)
+        return False
+    log.warning("groq_pool: %s=%r does not start with gsk_. Using it anyway; "
+                "if it 401s, that is why.", source, masked)
+    return True
+
+
 def api_keys() -> list[str]:
     """Every configured key, in priority order, de-duplicated and stripped."""
     found: list[str] = []
     for raw in (os.environ.get("GROQ_API_KEYS") or "").split(","):
         k = raw.strip()
-        if k and k not in found:
+        if k and k not in found and _usable_key(k, "GROQ_API_KEYS"):
             found.append(k)
     for var in KEY_VARS:
         k = (os.environ.get(var) or "").strip()
-        if k and k not in found:
+        if k and k not in found and _usable_key(k, var):
             found.append(k)
     return found
 
@@ -152,6 +192,11 @@ FAST: tuple[str, ...] = (
 # request fails at max_tokens=60 and succeeds at 400.
 MIN_MAX_TOKENS = 500
 
+# Head-room subtracted on top of the server-reported overshoot when shrinking a
+# rejected request. Groq's own token count differs slightly from the one it
+# quotes back, and a retry that misses by three tokens costs another round trip.
+TOKEN_SHRINK_MARGIN = 256
+
 MAX_THROTTLE_WAIT = 90.0    # seconds; longer is not worth blocking a job on
 MAX_THROTTLE_RETRIES = 4
 
@@ -185,9 +230,46 @@ def is_bad_key(exc: Exception) -> bool:
 
 
 def is_throttle(exc: Exception) -> bool:
-    """Any 429, per-minute or per-day."""
+    """Any 429, per-minute or per-day.
+
+    Checked AFTER is_request_too_large: a 413 body also carries
+    `rate_limit_exceeded`, and treating it as backpressure means waiting for a
+    minute that will never make the request fit.
+    """
     t = str(exc)
     return "rate_limit_exceeded" in t or "Error code: 429" in t
+
+
+def is_request_too_large(exc: Exception) -> bool:
+    """The single request exceeds the per-minute token budget.
+
+    Groq counts prompt + max_tokens against TPM, so reserving a large output is
+    itself the thing that breaks. autoshop asked for max_tokens=8192 against a
+    TPM of 8000 and got a 413 on every attempt for two straight weeks.
+
+    Nothing about this is transient. Waiting does not help, because the request
+    is larger than a whole minute of budget. Rotating keys does not help,
+    because the limit is per-organisation. Only a smaller request helps.
+    """
+    t = str(exc)
+    return ("Request too large" in t
+            or "Error code: 413" in t
+            or "reduce your message size" in t)
+
+
+def parse_token_budget(exc: Exception) -> tuple[int, int] | None:
+    """(limit, requested) out of 'Limit 8000, Requested 8612'.
+
+    Using the server's own arithmetic beats guessing a safe ceiling: the limit
+    differs per model and per tier, and it changes without notice.
+    """
+    m = re.search(r"Limit (\d+), Requested (\d+)", str(exc))
+    if not m:
+        return None
+    try:
+        return int(m.group(1)), int(m.group(2))
+    except ValueError:
+        return None
 
 
 def is_daily_limit(exc: Exception) -> bool:
@@ -260,6 +342,35 @@ def chat(
             except Exception as e:  # noqa: BLE001 - classified, then re-raised
                 if is_missing_model(e):
                     log.warning("groq_pool: %s is gone; trying the next model.", model)
+                    last = e
+                    break
+                # Checked BEFORE the throttle branch: a 413 body contains
+                # `rate_limit_exceeded` too, and reading it as backpressure
+                # means sleeping through a minute that cannot help.
+                if is_request_too_large(e):
+                    pair = parse_token_budget(e)
+                    shrunk = False
+                    if pair and budget > MIN_MAX_TOKENS:
+                        limit, requested = pair
+                        # Give back exactly the overshoot, plus a margin, so
+                        # the retry lands under the limit on the first try.
+                        target = max(MIN_MAX_TOKENS,
+                                     budget - (requested - limit) - TOKEN_SHRINK_MARGIN)
+                        if target < budget:
+                            log.warning(
+                                "groq_pool: %s rejected %d tokens against a "
+                                "limit of %d; retrying with max_tokens=%d.",
+                                model, requested, limit, target)
+                            budget = target
+                            shrunk = True
+                    if shrunk:
+                        continue
+                    # Either the prompt ALONE is over the limit, or the budget
+                    # is already at the floor. Another model may have a bigger
+                    # allowance; if none does, the caller gets this error.
+                    log.warning("groq_pool: %s cannot fit this request even at "
+                                "max_tokens=%d; trying the next model.",
+                                model, budget)
                     last = e
                     break
                 # A spent DAILY quota, or a key that is simply dead, is

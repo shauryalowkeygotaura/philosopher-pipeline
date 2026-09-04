@@ -194,21 +194,43 @@ BAD_KEY = "Error code: 401 - {'error': {'message': 'Invalid API Key', 'code': 'i
 
 
 def test_dead_key_rotates_to_the_next(monkeypatch):
-    """autoshop shipped a placeholder key and every call 401'd.
+    """A revoked key is not a dead service; move on rather than fail the run.
 
-    A dead key is not a dead service; move on rather than fail the run.
+    Uses a REVOKED-looking key rather than the literal "placeholder" it used to
+    use. Since 2026-09-04 api_keys() refuses whole-value templates before the
+    call, so "placeholder" never reaches the client and this would no longer
+    exercise the 401 rotation it exists to cover. That pre-filter has its own
+    test below.
     """
-    monkeypatch.setenv("GROQ_API_KEY", "placeholder")
-    monkeypatch.setenv("GROQ_API_KEY_2", "real")
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_revoked000000000")
+    monkeypatch.setenv("GROQ_API_KEY_2", "gsk_live00000000000")
     built = []
 
     def fake_make(key):
         built.append(key)
-        return FakeClient(errors=[BAD_KEY] if key == "placeholder" else [])
+        return FakeClient(errors=[BAD_KEY] if key.startswith("gsk_revoked") else [])
 
     monkeypatch.setattr(models, "_make_client", fake_make)
     assert models.chat(("m",), messages=[], max_tokens=10) is not None
-    assert built == ["placeholder", "real"]
+    assert built == ["gsk_revoked000000000", "gsk_live00000000000"]
+
+
+def test_an_unfilled_template_never_reaches_the_api(monkeypatch):
+    """autoshop has carried `paste_your_key_here` in GROQ_API_KEY for weeks.
+
+    Nothing broke loudly, because the pool rotates past a dead key. It just
+    spent the first call of every run earning a 401.
+    """
+    for var in models.KEY_VARS:
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.delenv("GROQ_API_KEYS", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "paste_your_key_here")
+    monkeypatch.setenv("GROQ_API_KEY_2", "gsk_live00000000000")
+    built = []
+    monkeypatch.setattr(models, "_make_client",
+                        lambda key: built.append(key) or FakeClient(errors=[]))
+    assert models.chat(("m",), messages=[], max_tokens=10) is not None
+    assert built == ["gsk_live00000000000"], "the template must not cost a call"
 
 
 def test_bad_key_classification():
