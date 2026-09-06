@@ -15,3 +15,4 @@
 - Seneca
 - Epictetus
 - Michel de Montaigne
+- Baruch Spinoza

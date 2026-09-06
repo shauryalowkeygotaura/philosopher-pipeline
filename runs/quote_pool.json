@@ -247,6 +247,12 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-08-27"
+    },
+    {
+      "quote": "He who fights with monsters must look out that he does not become a monster.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-09-06"
     }
   ],
   "simone de beauvoir": [
@@ -671,6 +677,38 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-30"
+    },
+    {
+      "quote": "The greatest happiness is to be content with what we have.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-09-06"
+    }
+  ],
+  "epictetus": [
+    {
+      "quote": "It is not things themselves that disturb us, but our judgments about them.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-09-06"
+    },
+    {
+      "quote": "To be free is to be indifferent to everything that is not in your control.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-09-06"
+    },
+    {
+      "quote": "The only thing that can be truly good is virtue.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-09-06"
+    },
+    {
+      "quote": "No man is free who is not master of himself.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-06"
     }
   ]
 }
