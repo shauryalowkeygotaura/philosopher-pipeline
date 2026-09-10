@@ -1,15 +1,15 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-09-10T11:43:17Z",
+  "ts": "2026-09-10T17:07:39Z",
   "mode": "kinetic",
   "status": "ok",
-  "summary": "Generated 1 kinetic reel(s) (Seneca), uploaded 0",
+  "summary": "Generated 1 kinetic reel(s) (Immanuel Kant), uploaded 0",
   "metrics": {
     "generated": 1,
     "uploaded": 0,
     "style": "kinetic",
     "philosophers": [
-      "Seneca"
+      "Immanuel Kant"
     ]
   },
   "budgets": {
