@@ -172,3 +172,108 @@ def test_upload_reel_records_real_media_id(tmp_path, monkeypatch):
     assert rows[0]["media_id"] == "778899"
     assert rows[0]["hook"] == "hook-c"
     uploader._client = None
+
+
+# ---------------------------------------------------------------------------
+# loop_status honesty tests
+#
+# 2026-09-10: loop_status() called without `arms` counted EVERY reward row in
+# the ledger, including 134 backfilled rows that carry no hook, and reported
+# "learning". The loop was in round-robin the whole time. A diagnostic that
+# reports green on a dead loop is the reason nobody looked for a month, so
+# these tests pin the failure modes it must name out loud.
+
+def _row(hook=None, likes=0, comments=0, **extra):
+    row = {"hook": hook, "insights": {"like_count": likes, "comment_count": comments}}
+    row.update(extra)
+    return row
+
+
+def test_loop_status_does_not_call_orphaned_rewards_learning():
+    """Rewards on rows with no arm value cannot drive selection."""
+    import bandit
+    rows = [_row(hook=None, likes=5) for _ in range(20)]
+    st = bandit.loop_status(entries=rows)
+    assert st["learning"] is False
+    assert st["phase"] == 1
+    assert st["reward_observations"] == 0      # attributable, not raw
+    assert st["rewards_in_ledger"] == 20
+    assert st["orphaned_rewards"] == 20
+    assert "ORPHANED" in st["verdict"]
+
+
+def test_loop_status_flags_a_single_observed_arm_as_degenerate():
+    """One arm with data is not a comparison; exploit just replays it."""
+    import bandit
+    rows = [_row(hook="only hook", likes=3) for _ in range(6)]
+    st = bandit.loop_status(entries=rows)
+    assert st["arms_with_data"] == 1
+    assert st["learning"] is False
+    assert "DEGENERATE" in st["verdict"]
+
+
+def test_loop_status_names_all_zero_insights_as_a_reach_problem():
+    """Insights present and zero on every metric is not 'no data yet'."""
+    import bandit
+    rows = [_row(hook="a hook", likes=0, comments=0) for _ in range(35)]
+    st = bandit.loop_status(entries=rows)
+    assert st["zero_signal_rows"] == 35
+    assert st["rewards_in_ledger"] == 0
+    assert st["learning"] is False
+    assert "DEAD SIGNAL" in st["verdict"]
+
+
+def test_loop_status_reports_learning_only_with_two_live_arms():
+    import bandit
+    arms = ["a", "b"]
+    rows = [_row(hook="a", likes=4), _row(hook="b", likes=9)]
+    st = bandit.loop_status(arms, entries=rows)
+    assert st["arms_with_data"] == 2
+    assert st["learning"] is True
+    assert st["phase"] == 2
+    assert "LEARNING" in st["verdict"]
+
+
+def test_loop_status_ignores_rewards_for_retired_arms():
+    """A hook removed from the arm list stops counting, and says so."""
+    import bandit
+    rows = [_row(hook="retired wording", likes=7) for _ in range(9)]
+    st = bandit.loop_status(["current a", "current b"], entries=rows)
+    assert st["reward_observations"] == 0
+    assert st["orphaned_rewards"] == 9
+    assert st["learning"] is False
+
+
+# ---------------------------------------------------------------------------
+# close_the_loop: the wiring that was missing
+#
+# bandit.loop_status() and insights.refresh_pending() were both well written and
+# had ZERO callers in the repo. Every pipeline run finished without ever asking
+# whether the reel it just shipped taught the channel anything. These tests pin
+# that the run now asks, and that asking can never sink an upload.
+
+def test_close_the_loop_reports_status_without_network(monkeypatch):
+    import pipeline, bandit
+    monkeypatch.setattr(bandit, "live_insights_enabled", lambda: False)
+    out = pipeline.close_the_loop(["hook a", "hook b"])
+    assert out["refreshed"] == 0                 # flag off means no network
+    assert out["status"] is not None
+    assert "verdict" in out["status"]
+
+
+def test_close_the_loop_survives_a_broken_insights_pull(monkeypatch):
+    """A diagnostic must never be able to kill a run that already published."""
+    import pipeline, insights
+    monkeypatch.setattr(insights, "refresh_pending",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("ig down")))
+    out = pipeline.close_the_loop(["hook a"])
+    assert out["refreshed"] == 0
+    assert out["status"] is not None             # status still reported
+
+
+def test_close_the_loop_survives_a_broken_status(monkeypatch):
+    import pipeline, bandit
+    monkeypatch.setattr(bandit, "loop_status",
+                        lambda *a, **k: (_ for _ in ()).throw(ValueError("bad ledger")))
+    out = pipeline.close_the_loop(["hook a"])
+    assert out["status"] is None                 # degraded, not raised

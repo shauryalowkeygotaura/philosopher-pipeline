@@ -98,6 +98,46 @@ Pruning stays manual on purpose. An unattended job that can delete the pool on
 a bad model day is precisely the failure mode this codebase already learned
 about the hard way.
 
+### Loop status, measured 2026-09-10
+
+Every run now ends in `pipeline.close_the_loop(HOOKS)`, which pulls delayed
+insights (a no-op making zero network calls while `PHILOSOPHER_LIVE_INSIGHTS`
+is off) and prints the bandit's honesty check. The verdict is written into
+`runs/latest.json` as `learning` / `loop_verdict`, so a scheduled run surfaces
+it without anyone opening a REPL. Before this, `bandit.loop_status()` and
+`insights.refresh_pending()` had **no callers anywhere in the repo**.
+
+What the check reports today, against the real ledger:
+
+```
+Loop: 0/8 arms have reward data (0 attributable of 134 ledger rewards)
+ORPHANED - 134 reward rows exist and NONE carry an arm value ...
+           Separately, 39 rows have insights that are all-zero.
+```
+
+Read that carefully, because it is worse than it looks:
+
+- 173 ledger rows. The 134 that carry a reward are **backfilled** Instagram
+  history written before the pipeline recorded which hook it used, so they can
+  never be attributed to an arm.
+- The 35 rows the pipeline itself wrote all carry a hook **and** an insights
+  blob, and every one of those blobs is **zero on every metric** - 0 likes,
+  0 comments, 0 impressions, 0 reach.
+- So the two halves of the loop have never met in the same row, `arm_stats()`
+  returns `{}`, and `pick()` falls through to `arms[post_count % len(arms)]`.
+  The bandit has been in Phase 1 round-robin its entire life.
+
+`loop_status()` used to call this **"learning"**: called without an arm list it
+counted all 134 orphaned rewards as evidence. It now requires rewards to be
+attributable to a live arm, requires >= 2 arms with data before claiming to
+learn, and reports all-zero rows separately as `DEAD SIGNAL`. A diagnostic that
+reports green on a dead loop is worse than no diagnostic.
+
+**Open question that gates everything else:** are those zeros real, or is
+`inline_insights_node` returning `AVAILABLE` with empty metrics because the
+account is not Business/Creator? Until that is settled, more bandit machinery
+optimises a variable nobody sees.
+
 ### Postmortem: the frozen-quote bug (2026-08-06)
 
 `fetch_quote()` served `PHILOSOPHER_QUOTES[0]` forever once a philosopher's 6-7

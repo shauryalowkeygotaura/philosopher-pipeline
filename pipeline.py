@@ -157,6 +157,55 @@ def _build_caption(quote, philosopher, hook, bio, slug_tag):
     return "\n\n".join(parts)
 
 
+def close_the_loop(arms):
+    """Pull delayed insights and report whether the bandit is actually learning.
+
+    Runs at the END of every pipeline run. Two jobs, both of which used to be
+    manual and were therefore never done:
+
+      1. insights.refresh_pending() - attaches engagement numbers to ledger rows
+         posted earlier. Internally gated on PHILOSOPHER_LIVE_INSIGHTS, so with
+         the flag off this makes ZERO network calls and returns 0.
+      2. bandit.loop_status(arms)  - the honesty check. Before 2026-09-10 this
+         existed with no callers anywhere, which is why the loop sat in Phase 1
+         round-robin for a month while looking finished.
+
+    Loud, never fatal. A diagnostic must not be able to kill a publish run, so
+    every failure here is swallowed and reported. The verdict rides out in
+    runs/latest.json so a scheduled run surfaces it without anyone opening a
+    REPL.
+    """
+    result = {"refreshed": 0, "status": None}
+    try:
+        import insights
+        result["refreshed"] = insights.refresh_pending()
+    except Exception as e:  # noqa: BLE001 - external boundary
+        log.warning("close_the_loop: insights refresh failed (%s: %s)", type(e).__name__, e)
+
+    try:
+        status = bandit.loop_status(arms)
+    except Exception as e:  # noqa: BLE001
+        log.warning("close_the_loop: loop_status failed (%s: %s)", type(e).__name__, e)
+        return result
+
+    result["status"] = status
+    verdict = status.get("verdict", "")
+    log.info("Loop: %d/%d arms have reward data (%d attributable of %d ledger rewards)",
+             status.get("arms_with_data", 0), len(arms),
+             status.get("reward_observations", 0), status.get("rewards_in_ledger", 0))
+    if status.get("learning"):
+        log.info("Loop: %s", verdict)
+    else:
+        # ERROR, not warning: an open loop means every reel this run shipped a
+        # rotation pick, and nothing about the channel got smarter.
+        log.error("Loop NOT learning: %s", verdict)
+        if status.get("zero_signal_rows"):
+            log.error("Loop: %d ledger rows carry insights that are zero on every "
+                      "metric. No amount of bandit tuning fixes a channel with no "
+                      "reach.", status["zero_signal_rows"])
+    return result
+
+
 def main(upload_now=True, single=False, generate_only=False):
     for d in [OUTPUT_DIR, CACHE_PHOTOS, CACHE_PAINTINGS, CACHE_AUDIO]:
         d.mkdir(parents=True, exist_ok=True)
@@ -452,13 +501,18 @@ def main(upload_now=True, single=False, generate_only=False):
         log.info("Scheduling %d reels...", len(generated))
         schedule_uploads(generated, upload_reel)
 
+    loop = close_the_loop(HOOKS)
+
     who = ", ".join(r["philosopher"] for r in generated)
     run_metrics.write(
         mode=STYLE, status="ok",
         summary=(f"Generated {len(generated)} {STYLE} reel(s) ({who})"
                  + (f", uploaded {uploaded}" if upload_now else " (not uploaded)")),
         metrics={"generated": len(generated), "uploaded": uploaded,
-                 "style": STYLE, "philosophers": [r["philosopher"] for r in generated]},
+                 "style": STYLE, "philosophers": [r["philosopher"] for r in generated],
+                 "learning": (loop.get("status") or {}).get("learning"),
+                 "loop_verdict": (loop.get("status") or {}).get("verdict"),
+                 "insights_refreshed": loop.get("refreshed", 0)},
         budgets={"edge_tts": {"note": "free, no key"},
                  "groq": {"note": "free tier (slogan generation)"}},
     )
