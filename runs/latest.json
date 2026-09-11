@@ -1,15 +1,15 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-09-10T17:07:39Z",
+  "ts": "2026-09-11T08:17:57Z",
   "mode": "kinetic",
   "status": "ok",
-  "summary": "Generated 1 kinetic reel(s) (Immanuel Kant), uploaded 0",
+  "summary": "Generated 1 kinetic reel(s) (Jean-Paul Sartre), uploaded 0",
   "metrics": {
     "generated": 1,
     "uploaded": 0,
     "style": "kinetic",
     "philosophers": [
-      "Immanuel Kant"
+      "Jean-Paul Sartre"
     ]
   },
   "budgets": {
