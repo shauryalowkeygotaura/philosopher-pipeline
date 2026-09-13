@@ -291,6 +291,18 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-08-08"
+    },
+    {
+      "quote": "The only thing that can be said about a person is that he is a being who is always becoming.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "We are not born, but we become; we are not given, but we make ourselves.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
     }
   ],
   "søren kierkegaard": [
@@ -379,6 +391,12 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "The world is my representation, and the representation is my world.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-09-13"
     }
   ],
   "marcus aurelius": [
@@ -683,6 +701,54 @@
       "theme": "desire",
       "source": "groq",
       "added": "2026-09-06"
+    },
+    {
+      "quote": "Life is long enough, if you know how to use it.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "It is not that we have a short time to live, but that we waste a great deal of it.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "The best revenge is to be unlike him who has offended you.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "The greatest difficulty is to be the master of oneself.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "The only thing that is truly yours is the mind.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "The greatest power is to be the master of oneself.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "Time is the coin of life. It is up to us to decide how we spend it.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-09-13"
+    },
+    {
+      "quote": "Life is long enough to do everything that is worthwhile.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-09-13"
     }
   ],
   "epictetus": [
@@ -709,6 +775,14 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-09-06"
+    }
+  ],
+  "michel de montaigne": [
+    {
+      "quote": "The only thing that is certain is that we die.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-09-13"
     }
   ]
 }

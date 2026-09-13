@@ -16,3 +16,4 @@
 - Epictetus
 - Michel de Montaigne
 - Baruch Spinoza
+- Lao Tzu
