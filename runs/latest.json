@@ -1,6 +1,6 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-09-16T10:11:09Z",
+  "ts": "2026-09-16T17:45:33Z",
   "mode": "kinetic",
   "status": "ok",
   "summary": "Generated 1 kinetic reel(s) (Seneca), uploaded 1",
@@ -12,7 +12,7 @@
       "Seneca"
     ],
     "learning": false,
-    "loop_verdict": "ORPHANED - 134 reward rows exist and NONE carry an arm value, so none of them count. They are backfilled history, written before the pipeline recorded which hook it used. Learning starts from zero regardless of how many rows the ledger holds. Separately, 48 rows have insights that are all-zero.",
+    "loop_verdict": "ORPHANED - 134 reward rows exist and NONE carry an arm value, so none of them count. They are backfilled history, written before the pipeline recorded which hook it used. Learning starts from zero regardless of how many rows the ledger holds. Separately, 49 rows have insights that are all-zero.",
     "insights_refreshed": 1
   },
   "budgets": {
