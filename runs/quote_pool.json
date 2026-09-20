@@ -749,6 +749,30 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-09-13"
+    },
+    {
+      "quote": "It is not the man who has little, but the man who is not content with what he has, who is truly poor.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-09-20"
+    },
+    {
+      "quote": "It is not that we have a short life, but that we waste much of it.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-09-20"
+    },
+    {
+      "quote": "The best revenge is to be unlike the one who has harmed you.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-09-20"
+    },
+    {
+      "quote": "The greatest remedy for anger is to be patient.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-20"
     }
   ],
   "epictetus": [
@@ -775,6 +799,12 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-09-06"
+    },
+    {
+      "quote": "Man is not worried by real problems, but by his thoughts about them.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-20"
     }
   ],
   "michel de montaigne": [
@@ -783,6 +813,22 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-09-13"
+    }
+  ],
+  "baruch spinoza": [
+    {
+      "quote": "The desire of the soul is the desire for its own preservation.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-09-20"
+    }
+  ],
+  "lao tzu": [
+    {
+      "quote": "The Tao that can be told is not the eternal Tao.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-09-20"
     }
   ]
 }

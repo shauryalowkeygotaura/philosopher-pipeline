@@ -17,3 +17,4 @@
 - Michel de Montaigne
 - Baruch Spinoza
 - Lao Tzu
+- Ralph Waldo Emerson
