@@ -307,7 +307,78 @@ def parse_retry_after(exc: Exception) -> float | None:
 # The call
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Overflow: OpenCode Zen free models, used ONLY after Groq is exhausted
+# --------------------------------------------------------------------------
+# Opt-in by presence of OPENCODE_API_KEY (free signup at opencode.ai/auth, no
+# billing). Zen's free models may use prompts for training, so never put
+# OPENCODE_API_KEY in a config that handles patient or client data: the
+# dental receptionist's Doppler config must not carry it.
+ZEN_BASE_URL = "https://opencode.ai/zen/v1"
+ZEN_MODELS = tuple(m for m in os.getenv(
+    "ZEN_MODELS", "mimo-v2.5-free,big-pickle,nemotron-3-ultra-free").split(",") if m)
+
+
+def _zen_ready() -> bool:
+    # Not _usable_key: that one accepts "" and warns on anything without gsk_,
+    # which every Zen key lacks.
+    value = os.getenv("OPENCODE_API_KEY", "").strip()
+    return bool(value) and not (_PLACEHOLDER_KEY.fullmatch(value)
+                                or _WORDY_KEY.fullmatch(value.strip("<>[]{}()")))
+
+
+def _groq_exhausted(exc: Exception) -> bool:
+    """Groq itself is out (quota, keys, models), as opposed to a bad request."""
+    return (is_bad_key(exc) or is_missing_model(exc) or is_request_too_large(exc)
+            or is_throttle(exc) or isinstance(exc, RuntimeError))
+
+
+def _zen_chat(messages: list[dict[str, str]], max_tokens: int, **kwargs: Any) -> Any:
+    from openai import OpenAI
+    zen = OpenAI(api_key=os.getenv("OPENCODE_API_KEY", "").strip(), base_url=ZEN_BASE_URL)
+    last: Exception | None = None
+    for model in ZEN_MODELS:
+        try:
+            resp = zen.chat.completions.create(
+                model=model, messages=messages, max_tokens=max_tokens, **kwargs)
+            if (resp.choices[0].message.content or "").strip():
+                log.warning("groq_pool: Groq exhausted; answered by Zen %s.", model)
+                return resp
+            last = RuntimeError(f"zen {model} returned empty content")
+        except Exception as e:  # noqa: BLE001 - try the next free model
+            log.warning("groq_pool: Zen %s failed: %s", model, e)
+            last = e
+    raise last if last is not None else RuntimeError("no Zen models configured")
+
+
 def chat(
+    tier: Sequence[str] = SMART,
+    *,
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    require_content: bool = False,
+    client: Any = None,
+    **kwargs: Any,
+) -> Any:
+    """Groq chat with every fallback below, then OpenCode Zen as overflow.
+
+    Zen is tried only when this pool owns the client (a caller-supplied client
+    is bound to its own key) and OPENCODE_API_KEY is set.
+    """
+    try:
+        return _groq_chat(tier, messages=messages, max_tokens=max_tokens,
+                          require_content=require_content, client=client, **kwargs)
+    except Exception as e:  # noqa: BLE001 - re-raised unless Zen answers
+        if client is not None or not _zen_ready() or not _groq_exhausted(e):
+            raise
+        log.warning("groq_pool: Groq unavailable (%s); overflowing to Zen.", e)
+        try:
+            return _zen_chat(messages, max(max_tokens, MIN_MAX_TOKENS), **kwargs)
+        except Exception:  # noqa: BLE001 - the Groq error is the real story
+            raise e
+
+
+def _groq_chat(
     tier: Sequence[str] = SMART,
     *,
     messages: list[dict[str, str]],
