@@ -18,3 +18,4 @@
 - Baruch Spinoza
 - Lao Tzu
 - Ralph Waldo Emerson
+- Henry David Thoreau
