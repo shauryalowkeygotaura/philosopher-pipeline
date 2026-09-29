@@ -5863,14 +5863,16 @@
       "To be free is to be indifferent to everything that is not in your control.",
       "The only thing that can be truly good is virtue.",
       "No man is free who is not master of himself.",
-      "Man is not worried by real problems, but by his thoughts about them."
+      "Man is not worried by real problems, but by his thoughts about them.",
+      "The things that trouble us are not the things themselves but our opinions about them."
     ],
     "used_songs": [
       "https://www.youtube.com/watch?v=NS8DPG62Fto",
       "https://www.youtube.com/watch?v=eFqUUlQSsbo",
       "https://www.youtube.com/watch?v=NS9z2QHcZdY",
       "https://www.youtube.com/watch?v=AswXiy8JCsI",
-      "https://www.youtube.com/watch?v=NS8DPG62Fto"
+      "https://www.youtube.com/watch?v=NS8DPG62Fto",
+      "https://www.youtube.com/watch?v=eFqUUlQSsbo"
     ],
     "used_photos": [
       "met-8f5297633c.jpg",
@@ -6042,11 +6044,36 @@
       "met-61e4b76a60.jpg",
       "met-03ce653965.jpg",
       "met-95b822a51d.jpg",
-      "portrait-epictetus-79cc29cbb5.jpg"
+      "portrait-epictetus-79cc29cbb5.jpg",
+      "met-ec8eac451e.jpg",
+      "met-b448f31dcd.jpg",
+      "met-1b02a20262.jpg",
+      "met-10762066a0.jpg",
+      "met-e7d5cf1039.jpg",
+      "met-377d3f1f00.jpg",
+      "met-ddcf7741ae.jpg",
+      "met-adcaee4da3.jpg",
+      "met-158f3486d3.jpg",
+      "met-5a27c85935.jpg",
+      "met-f6d1833843.jpg",
+      "met-beb72ea2ec.jpg",
+      "met-2a27fdaf4f.jpg",
+      "met-6aed24a15a.jpg",
+      "met-aa641d0116.jpg",
+      "met-72ce34c20a.jpg",
+      "met-0191f651de.jpg",
+      "met-d1c8e4f5e6.jpg",
+      "met-05f5a94682.jpg",
+      "met-cff90107b5.jpg",
+      "met-b2a6c0b3be.jpg",
+      "met-1d09c1d4b4.jpg",
+      "met-872a1d112d.jpg",
+      "met-7a72196ee4.jpg",
+      "portrait-epictetus-b759865825.jpg"
     ],
     "reframed": false,
-    "post_count": 5,
-    "last_generated": "2026-09-23"
+    "post_count": 6,
+    "last_generated": "2026-09-29"
   },
   "Michel de Montaigne": {
     "used_quotes": [
@@ -6208,6 +6235,14 @@
     "last_generated": "2026-09-22"
   },
   "Ralph Waldo Emerson": {
+    "used_quotes": [],
+    "used_songs": [],
+    "used_photos": [],
+    "reframed": false,
+    "post_count": 0,
+    "last_generated": null
+  },
+  "Henry David Thoreau": {
     "used_quotes": [],
     "used_songs": [],
     "used_photos": [],
