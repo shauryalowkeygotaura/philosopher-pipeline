@@ -50,7 +50,7 @@ jobs:
       # so it should not pay for Pillow/librosa/instagrapi. If you add a
       # third-party import anywhere in that chain, add it here too.
       - name: Install dependencies
-        run: pip install groq requests
+        run: pip install groq requests openai
 
       - name: Top up the quote pool
         env:

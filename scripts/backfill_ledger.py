@@ -83,6 +83,77 @@ def parse_caption(caption: str, known: set[str]) -> tuple[str, str] | None:
     return quote, canonical
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.lower().split()).rstrip(".!")
+
+
+def match_hook(caption: str, hooks) -> str | None:
+    """Return the HOOKS entry this caption opens with, or None.
+
+    The docstring above promised this from day one and nothing implemented it,
+    so all 134 backfilled rows landed with hook=None and the bandit could never
+    credit a single one of them to an arm. Compared on the first non-empty line,
+    case- and whitespace-insensitive, because Instagram can alter both.
+    """
+    if not isinstance(caption, str):
+        return None
+    first = next((ln for ln in caption.splitlines() if ln.strip()), "")
+    target = _norm(first)
+    if not target:
+        return None
+    for hook in hooks:
+        if _norm(hook) == target:
+            return hook
+    return None
+
+
+def first_line(caption: str) -> str:
+    return next((ln.strip() for ln in (caption or "").splitlines() if ln.strip()), "")
+
+
+def _load_hooks() -> list[str]:
+    # Lazy: pipeline.py pulls in the render stack, which the tests do not need.
+    import pipeline
+    return list(pipeline.HOOKS)
+
+
+def reattribute(client, hooks, *, dry_run: bool, sleep: float) -> int:
+    """Credit existing hook-less rows to their hook by re-reading each caption.
+
+    Captions whose first line matches no current hook are counted and printed:
+    a line that recurs there is old hook wording worth restoring to HOOKS.
+    """
+    from collections import Counter
+
+    orphans = [r for r in ledger.load_entries() if r.get("media_id") and not r.get("hook")]
+    log.info("%d rows have no hook; re-reading their captions.", len(orphans))
+    matched, unmatched = 0, Counter()
+    for row in orphans:
+        mid = row["media_id"]
+        try:
+            caption = client.media_info(mid).caption_text or ""
+        except Exception as e:  # noqa: BLE001
+            log.debug("media_info failed for %s: %s", mid, e)
+            unmatched["<unreadable>"] += 1
+            continue
+        hook = match_hook(caption, hooks)
+        if hook:
+            matched += 1
+            if not dry_run:
+                ledger.set_hook(mid, hook)
+        else:
+            unmatched[first_line(caption)[:80] or "<empty caption>"] += 1
+        time.sleep(sleep)
+
+    log.info("Reattributed %d of %d rows%s.", matched, len(orphans),
+             " (dry run, nothing written)" if dry_run else "")
+    if unmatched:
+        log.info("Unmatched opening lines (recurring ones are old hooks to restore):")
+        for line, n in unmatched.most_common(15):
+            log.info("  %3d  %s", n, line)
+    return 0
+
+
 def public_metrics(media) -> dict:
     """Like/comment counts straight off the media object.
 
@@ -105,6 +176,8 @@ def main() -> int:
                     help="skip the account-gated insights call, use public counts only")
     ap.add_argument("--sleep", type=float, default=1.5,
                     help="seconds between per-media calls (IG rate limiting)")
+    ap.add_argument("--reattribute", action="store_true",
+                    help="fill the hook on existing hook-less rows from their captions")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -126,6 +199,10 @@ def main() -> int:
                   "INSTAGRAM_PASSWORD in Doppler, and clear any checkpoint by "
                   "logging in from a browser once.")
         return 1
+
+    hooks = _load_hooks()
+    if args.reattribute:
+        return reattribute(client, hooks, dry_run=args.dry_run, sleep=args.sleep)
 
     try:
         user_id = client.user_id
@@ -151,6 +228,7 @@ def main() -> int:
             unparsed += 1
             continue
         quote, philosopher = parsed
+        hook = match_hook(getattr(media, "caption_text", "") or "", hooks)
 
         metrics = {}
         if not args.no_insights:
@@ -181,6 +259,7 @@ def main() -> int:
                 mp4_path=None,
                 caption=getattr(media, "caption_text", None),
                 philosopher=philosopher,
+                hook=hook,
                 quote=quote,
                 theme=theme,
                 style="kinetic",

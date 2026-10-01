@@ -193,6 +193,36 @@ def attach_insights(media_id: str, insights: dict[str, Any], path: Path | None =
     return True
 
 
+def set_hook(media_id: str, hook: str, path: Path | None = None) -> bool:
+    """Fill the hook on an existing row that has none.
+
+    Exists for backfilled rows, which were written with hook=None and so could
+    never be credited to an arm. Never overwrites a hook already recorded: the
+    pipeline's own value is first-hand, a caption match is reconstruction.
+    """
+    valid = validate_media_id(media_id)
+    if valid is None or not isinstance(hook, str) or not hook:
+        return False
+
+    target = Path(path) if path is not None else LEDGER_PATH
+    rows = load_entries(target)
+    updated = False
+    for row in rows:
+        if row.get("media_id") == valid and not row.get("hook"):
+            row["hook"] = hook
+            updated = True
+    if not updated:
+        return False
+
+    try:
+        with target.open("w", encoding="utf-8") as fh:
+            for row in rows:
+                fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception:
+        return False
+    return True
+
+
 def pending_insight_ids(path: Path | None = None) -> list[str]:
     """Return media ids that have been posted but have no insights attached yet."""
     out: list[str] = []
