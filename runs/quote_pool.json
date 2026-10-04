@@ -819,6 +819,18 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-09-13"
+    },
+    {
+      "quote": "Death is the only certain thing.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-10-04"
+    },
+    {
+      "quote": "The fear of death is the most common of all the fears.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-10-04"
     }
   ],
   "baruch spinoza": [
@@ -835,6 +847,20 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-09-20"
+    }
+  ],
+  "henry david thoreau": [
+    {
+      "quote": "I never found a friend so loyal as solitude.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-10-04"
+    },
+    {
+      "quote": "I went to the woods because I wanted to live deliberately.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-10-04"
     }
   ]
 }
