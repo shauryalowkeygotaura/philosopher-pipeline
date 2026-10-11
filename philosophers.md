@@ -20,3 +20,4 @@
 - Ralph Waldo Emerson
 - Henry David Thoreau
 - Simone Weil
+- Hannah Arendt

@@ -811,6 +811,12 @@
       "theme": "suffering",
       "source": "groq",
       "added": "2026-09-27"
+    },
+    {
+      "quote": "He who is not a master of himself is a slave.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-10-11"
     }
   ],
   "michel de montaigne": [
@@ -861,6 +867,34 @@
       "theme": "desire",
       "source": "groq",
       "added": "2026-10-04"
+    },
+    {
+      "quote": "I went to the woods because I wished to live deliberately, to front only the essential facts of life.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-10-11"
+    },
+    {
+      "quote": "The mass of men lead a life of quiet desperation.",
+      "theme": "desire",
+      "source": "groq",
+      "added": "2026-10-11"
+    }
+  ],
+  "ralph waldo emerson": [
+    {
+      "quote": "Solitude is the mother of the soul.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-10-11"
+    }
+  ],
+  "simone weil": [
+    {
+      "quote": "The most painful thing is to be alone in a crowd.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-10-11"
     }
   ]
 }

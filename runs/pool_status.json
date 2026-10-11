@@ -1,34 +1,32 @@
 {
-  "checked_at": "2026-10-04T10:32:49Z",
-  "total_runway": 65,
+  "checked_at": "2026-10-11T10:45:03Z",
+  "total_runway": 61,
   "min_runway": 40,
-  "quotes_added": 4,
+  "quotes_added": 5,
   "promoted": [
-    "Simone Weil"
+    "Hannah Arendt"
   ],
   "starved": [
     "Baruch Spinoza",
-    "Epictetus",
+    "Hannah Arendt",
     "Lao Tzu",
-    "Ralph Waldo Emerson",
-    "Simone Weil"
+    "Michel de Montaigne"
   ],
   "tapped_out": [
-    "Epictetus",
+    "Michel de Montaigne",
     "Baruch Spinoza",
     "Lao Tzu",
-    "Ralph Waldo Emerson",
-    "Fyodor Dostoevsky",
     "Søren Kierkegaard",
+    "Fyodor Dostoevsky",
     "Franz Kafka",
     "Friedrich Nietzsche",
-    "Blaise Pascal",
-    "Albert Camus",
     "Simone de Beauvoir",
     "Arthur Schopenhauer",
-    "Voltaire",
+    "Blaise Pascal",
+    "Albert Camus",
     "Marcus Aurelius",
     "Immanuel Kant",
+    "Voltaire",
     "Jean-Paul Sartre",
     "Seneca"
   ],
@@ -36,25 +34,26 @@
   "calls_used": 60,
   "call_budget": 60,
   "per_philosopher": {
-    "Epictetus": 0,
-    "Michel de Montaigne": 2,
+    "Epictetus": 1,
+    "Michel de Montaigne": 0,
     "Baruch Spinoza": 0,
     "Lao Tzu": 0,
-    "Ralph Waldo Emerson": 0,
+    "Ralph Waldo Emerson": 1,
     "Henry David Thoreau": 2,
+    "Simone Weil": 1,
+    "Søren Kierkegaard": 1,
     "Fyodor Dostoevsky": 2,
-    "Søren Kierkegaard": 2,
     "Franz Kafka": 4,
     "Friedrich Nietzsche": 4,
+    "Simone de Beauvoir": 4,
+    "Arthur Schopenhauer": 4,
     "Blaise Pascal": 4,
     "Albert Camus": 5,
-    "Simone de Beauvoir": 5,
-    "Arthur Schopenhauer": 5,
+    "Marcus Aurelius": 5,
+    "Immanuel Kant": 5,
     "Voltaire": 6,
-    "Marcus Aurelius": 6,
-    "Immanuel Kant": 6,
     "Jean-Paul Sartre": 6,
     "Seneca": 6,
-    "Simone Weil": 0
+    "Hannah Arendt": 0
   }
 }
