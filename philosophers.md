@@ -21,3 +21,4 @@
 - Henry David Thoreau
 - Simone Weil
 - Hannah Arendt
+- Ludwig Wittgenstein

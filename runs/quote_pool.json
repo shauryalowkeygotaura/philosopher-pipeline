@@ -817,6 +817,12 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-10-11"
+    },
+    {
+      "quote": "To be angry at a thing is to be angry at yourself.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-10-18"
     }
   ],
   "michel de montaigne": [
@@ -837,6 +843,24 @@
       "theme": "mortality",
       "source": "groq",
       "added": "2026-10-04"
+    },
+    {
+      "quote": "The greatest thing in the world is to know how to be a good friend.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-10-18"
+    },
+    {
+      "quote": "It is better to be a fool in a great company than a wise man in a small one.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-10-18"
+    },
+    {
+      "quote": "The mind is a great instrument, but it is not a perfect one.",
+      "theme": "absurdity",
+      "source": "groq",
+      "added": "2026-10-18"
     }
   ],
   "baruch spinoza": [
@@ -887,6 +911,18 @@
       "theme": "solitude",
       "source": "groq",
       "added": "2026-10-11"
+    },
+    {
+      "quote": "A man is not a man until he is a man for himself.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-10-18"
+    },
+    {
+      "quote": "The greatest discovery of my generation is that a human being can alter his life by altering his attitudes.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-10-18"
     }
   ],
   "simone weil": [
