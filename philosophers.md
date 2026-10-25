@@ -22,3 +22,4 @@
 - Simone Weil
 - Hannah Arendt
 - Ludwig Wittgenstein
+- Heraclitus
