@@ -835,6 +835,18 @@
       "theme": "self-mastery",
       "source": "groq",
       "added": "2026-10-25"
+    },
+    {
+      "quote": "No man is free who does not control his own thoughts.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-11-01"
+    },
+    {
+      "quote": "To be angry at a thing is to give it power over you.",
+      "theme": "defiance",
+      "source": "groq",
+      "added": "2026-11-01"
     }
   ],
   "michel de montaigne": [
@@ -967,6 +979,12 @@
       "theme": "suffering",
       "source": "groq",
       "added": "2026-10-11"
+    },
+    {
+      "quote": "Solitude is the most intimate place where the soul can hear its own voice.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-11-01"
     }
   ]
 }

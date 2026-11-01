@@ -23,3 +23,4 @@
 - Hannah Arendt
 - Ludwig Wittgenstein
 - Heraclitus
+- Epicurus
