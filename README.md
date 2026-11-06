@@ -1,5 +1,11 @@
 # Philosopher Instagram Pipeline
 
+## Quick start
+
+```bash
+git clone https://github.com/shauryalowkeygotaura/philosopher-pipeline && cd philosopher-pipeline && pip install -r requirements.txt && python pipeline.py
+```
+
 ## Quote supply and the self-improving loop
 
 Quotes come from `quotes.py`, which walks a four-step supply chain and falls
