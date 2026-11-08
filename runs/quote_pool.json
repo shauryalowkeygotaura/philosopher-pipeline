@@ -971,6 +971,18 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-10-25"
+    },
+    {
+      "quote": "Solitude is the place of the soul, where it can find the true self.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-11-08"
+    },
+    {
+      "quote": "The quiet of solitude is the music of the soul.",
+      "theme": "solitude",
+      "source": "groq",
+      "added": "2026-11-08"
     }
   ],
   "simone weil": [

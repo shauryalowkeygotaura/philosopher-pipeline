@@ -24,3 +24,4 @@
 - Ludwig Wittgenstein
 - Heraclitus
 - Epicurus
+- Boethius
