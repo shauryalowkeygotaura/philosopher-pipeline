@@ -68,7 +68,7 @@ QUOTE_AUDIT_PATH = _DIR / "runs" / "quote_audit.json"
 
 # A quote must score at least this (1-10) on reel strength to publish. See
 # audit_quotes() for the rubric.
-MIN_STRENGTH = 7
+MIN_STRENGTH = 6
 
 # The bandit arm vocabulary. Deliberately small and stable: arms only become
 # statistically meaningful by recurring, so resist growing this list. Adding a

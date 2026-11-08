@@ -2,16 +2,14 @@ name: Philosopher Pipeline
 
 on:
   schedule:
-    - cron: "30 3 * * 2"  # Tue 9am IST
-    - cron: "30 6 * * 2"  # Tue 12pm IST
-    - cron: "30 5 * * 3"  # Wed 11am IST
-    - cron: "30 13 * * 3" # Wed 7pm IST
-    - cron: "30 6 * * 4"  # Thu 12pm IST
-    - cron: "30 13 * * 4" # Thu 7pm IST
-    - cron: "30 3 * * 5"  # Fri 9am IST
-    - cron: "30 6 * * 5"  # Fri 12pm IST
-    - cron: "30 4 * * 6"  # Sat 10am IST
+    # Every 30 min = 48/day: under the IG publish cap (50/24h on older docs, 100 on newer).
+    - cron: "*/30 * * * *"
   workflow_dispatch:
+
+# Runs commit state.json/runs/ back; overlapping runs would race that push.
+concurrency:
+  group: reel-pipeline
+  cancel-in-progress: false
 
 jobs:
   run-pipeline:
