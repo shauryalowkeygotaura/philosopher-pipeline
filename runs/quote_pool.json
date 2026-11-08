@@ -983,6 +983,12 @@
       "theme": "solitude",
       "source": "groq",
       "added": "2026-11-08"
+    },
+    {
+      "quote": "The past is a ghost, the future a dream, but the present is a gift.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-11-08"
     }
   ],
   "simone weil": [
