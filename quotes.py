@@ -61,6 +61,15 @@ _DIR = Path(__file__).parent.resolve()
 # must survive the ephemeral CI runner, so they live here.
 QUOTE_POOL_PATH = _DIR / "runs" / "quote_pool.json"
 
+# Blind-attribution + strength verdicts, keyed by canon(quote). Covers static
+# AND pool rows, so it lives beside the pool rather than inside it. Earned state:
+# runs/ is committed back by CI.
+QUOTE_AUDIT_PATH = _DIR / "runs" / "quote_audit.json"
+
+# A quote must score at least this (1-10) on reel strength to publish. See
+# audit_quotes() for the rubric.
+MIN_STRENGTH = 7
+
 # The bandit arm vocabulary. Deliberately small and stable: arms only become
 # statistically meaningful by recurring, so resist growing this list. Adding a
 # theme resets that arm's sample count to zero.
@@ -774,6 +783,154 @@ def generate_quotes(
 
 
 # ---------------------------------------------------------------------------
+# Audit: blind attribution + reel strength
+# ---------------------------------------------------------------------------
+#
+# verify_quotes() is told the thinker's name, and that is exactly how it leaks:
+# primed with "Emerson", the model happily accepts Theophrastus's "Time is the
+# most precious thing that we can spend". The audit asks the opposite question
+# with the name WITHHELD -- "who said this?" -- so a misattributed or invented
+# line has nothing to anchor to and comes back as someone else or "unknown".
+#
+# It also scores strength, because attribution was the only gate: a genuine but
+# flat line (Voltaire's deathbed "I die adoring God...") sailed through and
+# published. Real is necessary, not sufficient.
+
+_AUDIT_SYSTEM_PROMPT = """You audit quotations for a philosophy Instagram Reels account. Each line will be shown as large text over a 10-second reel to a general audience scrolling fast.
+
+For each numbered line, return:
+  "author": who you know actually wrote or said it, full name. If you cannot place it in a specific person's documented work, return "unknown". Never guess from style. Commonly misattributed lines must get their TRUE author.
+  "strength": 1-10, how hard the line hits as a standalone reel.
+
+Strength rubric:
+  9-10: instantly understood, a sharp turn or paradox, makes the viewer stop and feel seen. ("He who has a why to live can bear almost any how.")
+  7-8:  clear and quotable, real insight, works with zero context.
+  4-6:  true but flat, generic, or needs context to land.
+  1-3:  confusing, archaic, religious/devotional, a deathbed or biographical line, a fragment, or a platitude anyone could have said.
+
+Penalise: needing the surrounding passage, abstract jargon, sentences over ~25 words, greeting-card platitudes.
+
+Output STRICT JSON: {"audits": [{"n": 1, "author": "Friedrich Nietzsche", "strength": 9}]}
+No prose, no markdown fence."""
+
+
+def _norm_name(s: str) -> str:
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c)).lower()
+
+
+def author_matches(philosopher: str, author: str) -> bool:
+    """True when the blind answer names the claimed thinker (surname match)."""
+    surname = _norm_name(philosopher).split()[-1] if philosopher.strip() else ""
+    return bool(surname) and surname in _norm_name(author)
+
+
+def load_audit(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    path = path or QUOTE_AUDIT_PATH
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as e:
+        log.error("load_audit: unreadable %s (%s); treating as empty.", path, e)
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_audit(audit: dict[str, dict[str, Any]], path: Path | None = None) -> None:
+    path = path or QUOTE_AUDIT_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(audit, ensure_ascii=False, indent=1, sort_keys=True),
+                   encoding="utf-8")
+    tmp.replace(path)
+
+
+def audit_quotes(candidates: Sequence[str]) -> list[dict[str, Any] | None]:
+    """Blind-attribute and strength-score `candidates` in one call.
+
+    Returns one {"author", "strength"} per candidate, or None where the model
+    gave no usable ruling. Infrastructure failure returns all-None (the caller
+    decides whether unaudited means skip or serve). Daily quota raises
+    RateLimited, like everything else in this module.
+    """
+    if not candidates:
+        return []
+    numbered = "\n".join(f"{i}. {q}" for i, q in enumerate(candidates, 1))
+    try:
+        resp = models.chat(
+            models.SMART,
+            messages=[
+                {"role": "system", "content": _AUDIT_SYSTEM_PROMPT},
+                {"role": "user", "content": numbered},
+            ],
+            max_tokens=120 * len(candidates) + 200,
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        payload = json.loads((resp.choices[0].message.content or "").strip())
+        rows = payload.get("audits") if isinstance(payload, dict) else None
+        if not isinstance(rows, list):
+            log.warning("audit_quotes: malformed response.")
+            return [None] * len(candidates)
+    except Exception as e:  # noqa: BLE001 - external boundary
+        if _is_rate_limit(e):
+            raise RateLimited(str(e)) from e
+        log.warning("audit_quotes: unavailable (%s).", e)
+        return [None] * len(candidates)
+
+    out: list[dict[str, Any] | None] = [None] * len(candidates)
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        idx, author, strength = r.get("n"), r.get("author"), r.get("strength")
+        if not (isinstance(idx, int) and 1 <= idx <= len(candidates)):
+            continue
+        if not isinstance(author, str) or not isinstance(strength, (int, float)):
+            continue
+        out[idx - 1] = {"author": author.strip(), "strength": int(strength)}
+    return out
+
+
+def passes_audit(philosopher: str, verdict: dict[str, Any] | None) -> bool:
+    """Publishable iff the blind author is the claimed thinker AND it hits hard."""
+    if not verdict:
+        return False
+    return (author_matches(philosopher, verdict.get("author", ""))
+            and int(verdict.get("strength", 0)) >= MIN_STRENGTH)
+
+
+def ensure_audited(
+    philosopher: str,
+    rows: Sequence[dict[str, Any]],
+    *,
+    path: Path | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Audit any of `rows` not yet in the audit file, persist, return the file.
+
+    Lazy backfill: the pool and static table predate the audit, so each
+    philosopher's unaudited stock is audited the first time a reel needs it.
+    """
+    audit = load_audit(path)
+    todo = [r["quote"] for r in rows if canon(r["quote"]) not in audit]
+    if not todo:
+        return audit
+    verdicts = audit_quotes(todo)
+    changed = False
+    for quote, v in zip(todo, verdicts):
+        if v is None:
+            continue  # unruled stays unaudited and is retried next time
+        audit[canon(quote)] = {**v, "claimed": philosopher, "passed": passes_audit(philosopher, v)}
+        changed = True
+        if not audit[canon(quote)]["passed"]:
+            log.info("audit: BLOCKED %s %.70r -> %s, strength %s",
+                     philosopher, quote, v["author"], v["strength"])
+    if changed:
+        save_audit(audit, path)
+    return audit
+
+
+# ---------------------------------------------------------------------------
 # Selection
 # ---------------------------------------------------------------------------
 
@@ -795,6 +952,31 @@ def _lru_replay(pool_rows: list[dict[str, Any]], used_quotes: Sequence[str]) -> 
         pool_rows,
         key=lambda r: (last_seen.get(canon(r["quote"]), -1), pool_rows.index(r)),
     )
+
+
+def _screen(
+    philosopher: str,
+    rows: Sequence[dict[str, Any]],
+    pool_path: Path | None,
+    *,
+    audit_new: bool = True,
+) -> list[dict[str, Any]]:
+    """Drop rows the audit blocked; strongest first, unaudited last.
+
+    Never raises: an unavailable audit leaves rows unaudited and servable, so a
+    Groq outage degrades quality instead of stopping the reel.
+    """
+    apath = (pool_path.parent / QUOTE_AUDIT_PATH.name) if pool_path else None
+    try:
+        audit = ensure_audited(philosopher, rows, path=apath) if audit_new else load_audit(apath)
+    except Exception as e:  # noqa: BLE001 - RateLimited included
+        log.warning("select_quote: audit skipped for %s (%s).", philosopher, e)
+        audit = load_audit(apath)
+    kept = [r for r in rows if audit.get(canon(r["quote"]), {}).get("passed", True)]
+    def rank(r: dict[str, Any]) -> int:
+        v = audit.get(canon(r["quote"]))
+        return -int(v["strength"]) if v else 0
+    return sorted(kept, key=rank)  # stable: keeps pool order within a score
 
 
 def select_quote(
@@ -832,6 +1014,7 @@ def select_quote(
 
     used = canon_set(used_quotes)
     fresh = [r for r in pool_rows if canon(r["quote"]) not in used]
+    fresh = _screen(philosopher, fresh, pool_path)
     theme = pick_theme(philosopher, post_count, entries=entries)
 
     # 1. fresh quote on the theme the bandit wants
@@ -882,6 +1065,8 @@ def select_quote(
             generated = []
         if generated:
             add_to_pool(philosopher, generated, path=pool_path)
+            generated = _screen(philosopher, generated, pool_path)
+        if generated:
             chosen = generated[0]
             log.info(
                 "select_quote: extended %s pool by %d; serving a generated quote.",
@@ -894,7 +1079,10 @@ def select_quote(
         )
 
     # 4. floor: replay the least-recently-used quote
-    chosen = _lru_replay(pool_rows, used_quotes)
+    chosen = _lru_replay(
+        _screen(philosopher, pool_rows, pool_path, audit_new=False) or pool_rows,
+        used_quotes,
+    )
     log.warning(
         "select_quote: REPLAYING least-recently-used quote for %s.", philosopher,
     )

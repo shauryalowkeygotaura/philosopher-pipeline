@@ -582,3 +582,55 @@ def test_retry_after_is_parsed_from_both_shapes():
 def test_non_throttle_errors_are_not_rate_limits():
     assert not quotes._is_rate_limit(_Throttle("model_not_found"))
     assert not quotes._is_rate_limit(_Throttle("connection reset by peer"))
+
+
+# --- audit: blind attribution + strength -----------------------------------
+
+def test_author_matches_on_surname_ignoring_accents():
+    assert quotes.author_matches("Søren Kierkegaard", "Soren Kierkegaard")
+    assert quotes.author_matches("Ralph Waldo Emerson", "R. W. Emerson")
+    assert not quotes.author_matches("Ralph Waldo Emerson", "Theophrastus")
+    assert not quotes.author_matches("Simone Weil", "Simone de Beauvoir")
+    assert not quotes.author_matches("Simone Weil", "unknown")
+
+
+def test_passes_audit_needs_both_author_and_strength():
+    ok = {"author": "Friedrich Nietzsche", "strength": 9}
+    assert quotes.passes_audit("Friedrich Nietzsche", ok)
+    assert not quotes.passes_audit("Friedrich Nietzsche", {**ok, "strength": 5})
+    assert not quotes.passes_audit("Voltaire", ok)
+    assert not quotes.passes_audit("Voltaire", None)
+
+
+def test_select_quote_skips_blocked_and_serves_strongest(monkeypatch, tmp_path):
+    pool = tmp_path / "quote_pool.json"
+    rows = [
+        {"quote": "Time is the most precious thing that we can spend.", "theme": "time", "source": "groq"},
+        {"quote": "A flat but genuine line that needs a lot of context to land.", "theme": "time", "source": "groq"},
+        {"quote": "The years teach much which the days never know.", "theme": "time", "source": "groq"},
+    ]
+    pool.write_text(json.dumps({"ralph waldo emerson": rows}), encoding="utf-8")
+    monkeypatch.setattr("fetcher.PHILOSOPHER_QUOTES", {}, raising=False)
+    monkeypatch.setattr(quotes, "audit_quotes", lambda c: [
+        {"author": "Theophrastus", "strength": 8},
+        {"author": "Ralph Waldo Emerson", "strength": 5},
+        {"author": "Ralph Waldo Emerson", "strength": 9},
+    ])
+    monkeypatch.setattr(quotes, "pick_theme", lambda *a, **k: "time")
+    got = quotes.select_quote("Ralph Waldo Emerson", [], pool_path=pool, allow_generation=False)
+    assert got["quote"].startswith("The years teach much")
+    saved = json.loads((tmp_path / "quote_audit.json").read_text(encoding="utf-8"))
+    assert sum(v["passed"] for v in saved.values()) == 1
+
+
+def test_select_quote_serves_unaudited_when_audit_unavailable(monkeypatch, tmp_path):
+    pool = tmp_path / "quote_pool.json"
+    pool.write_text(json.dumps({"seneca": [
+        {"quote": "We suffer more often in imagination than in reality.", "theme": "suffering", "source": "groq"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr("fetcher.PHILOSOPHER_QUOTES", {}, raising=False)
+    def boom(c):
+        raise quotes.RateLimited("tpd")
+    monkeypatch.setattr(quotes, "audit_quotes", boom)
+    got = quotes.select_quote("Seneca", [], pool_path=pool, allow_generation=False)
+    assert got["quote"].startswith("We suffer more often")
