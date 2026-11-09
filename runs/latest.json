@@ -1,6 +1,6 @@
 {
   "pipeline": "philosopher",
-  "ts": "2026-11-08T21:01:13Z",
+  "ts": "2026-11-09T00:44:21Z",
   "mode": "kinetic",
   "status": "ok",
   "summary": "Generated 1 kinetic reel(s) (Ralph Waldo Emerson), uploaded 1",
@@ -12,7 +12,7 @@
       "Ralph Waldo Emerson"
     ],
     "learning": false,
-    "loop_verdict": "ORPHANED - 134 reward rows exist and NONE carry an arm value, so none of them count. They are backfilled history, written before the pipeline recorded which hook it used. Learning starts from zero regardless of how many rows the ledger holds. Separately, 113 rows have insights that are all-zero.",
+    "loop_verdict": "ORPHANED - 134 reward rows exist and NONE carry an arm value, so none of them count. They are backfilled history, written before the pipeline recorded which hook it used. Learning starts from zero regardless of how many rows the ledger holds. Separately, 114 rows have insights that are all-zero.",
     "insights_refreshed": 1
   },
   "budgets": {
