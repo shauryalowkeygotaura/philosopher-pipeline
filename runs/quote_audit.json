@@ -1,9 +1,75 @@
 {
+ "act only according to that maxim whereby you can at the same time will that it should become a universal law": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 8
+ },
+ "all our knowledge begins with experience but it does not arise from experience": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 7
+ },
+ "all our knowledge begins with sense proceeds then to understanding and ends with reason": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 3
+ },
+ "desire is the faculty of desiring something so far as it is in our power": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 6
+ },
+ "happiness is not an ideal of reason but of imagination": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 7
+ },
+ "morality is not the doctrine of how we may make ourselves happy but how we may make ourselves worthy of happiness": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 3
+ },
+ "out of the crooked timber of humanity no straight thing was ever made": {
+  "author": "Ralph Waldo Emerson",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 6
+ },
+ "science is organized knowledge wisdom is organized life": {
+  "author": "Isaac Asimov",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 7
+ },
+ "seek not the favor of the multitude it is seldom got by honest and lawful means": {
+  "author": "Ralph Waldo Emerson",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 5
+ },
  "solitude is the place of the soul where it can find the true self": {
   "author": "unknown",
   "claimed": "Ralph Waldo Emerson",
   "passed": false,
   "strength": 3
+ },
+ "the idea of time is a necessary condition of all our experience": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 3
+ },
+ "the only thing that is good without qualification is a good will": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 9
  },
  "the past is a ghost the future a dream but the present is a gift": {
   "author": "unknown",
@@ -16,5 +82,35 @@
   "claimed": "Ralph Waldo Emerson",
   "passed": false,
   "strength": 3
+ },
+ "the unconditioned causality of freedom is outside time": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 3
+ },
+ "the unconditioned necessity of a thing is not to be found in experience but in the concept of the thing": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": false,
+  "strength": 3
+ },
+ "time is not an empirical concept that has been derived from any experience": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 7
+ },
+ "time is nothing but the form of inner sense": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 7
+ },
+ "two things fill the mind with ever new and increasing admiration and awe the starry heavens above me and the moral law within me": {
+  "author": "Immanuel Kant",
+  "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 8
  }
 }
