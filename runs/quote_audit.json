@@ -53,6 +53,18 @@
   "passed": false,
   "strength": 8
  },
+ "it is not that we have a short life but that we waste much of it": {
+  "author": "Seneca",
+  "claimed": "Seneca",
+  "passed": true,
+  "strength": 8
+ },
+ "it is not the man who has little but the man who is not content with what he has who is truly poor": {
+  "author": "Confucius",
+  "claimed": "Seneca",
+  "passed": false,
+  "strength": 7
+ },
  "kind words do not cost much yet they accomplish much": {
   "author": "Lao Tzu",
   "claimed": "Blaise Pascal",
@@ -119,9 +131,27 @@
   "passed": false,
   "strength": 3
  },
+ "the best revenge is to be unlike the one who has harmed you": {
+  "author": "Marcus Aurelius",
+  "claimed": "Seneca",
+  "passed": false,
+  "strength": 9
+ },
  "the eternal silence of these infinite spaces frightens me": {
   "author": "Rainer Maria Rilke",
   "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "the greatest power is to be the master of oneself": {
+  "author": "Lao Tzu",
+  "claimed": "Seneca",
+  "passed": false,
+  "strength": 6
+ },
+ "the greatest remedy for anger is to be patient": {
+  "author": "Buddha",
+  "claimed": "Seneca",
   "passed": false,
   "strength": 7
  },
