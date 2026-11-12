@@ -91,6 +91,12 @@
       "theme": "time",
       "source": "groq",
       "added": "2026-08-01"
+    },
+    {
+      "quote": "The past is a foreign country; they do things differently there.",
+      "theme": "time",
+      "source": "groq",
+      "added": "2026-11-12"
     }
   ],
   "franz kafka": [

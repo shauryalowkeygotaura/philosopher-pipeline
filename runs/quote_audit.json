@@ -5,6 +5,12 @@
   "passed": true,
   "strength": 6
  },
+ "above all don t lie to yourself the man who lies to himself and listens to his own lie comes to a point where he cannot distinguish the truth": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
+ },
  "act only according to that maxim whereby you can at the same time will that it should become a universal law": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -35,6 +41,12 @@
   "passed": false,
   "strength": 3
  },
+ "beauty will save the world": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
+ },
  "desire is the faculty of desiring something so far as it is in our power": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -59,6 +71,12 @@
   "passed": false,
   "strength": 8
  },
+ "if you want to be respected by others the great thing is to respect yourself": {
+  "author": "Confucius",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 7
+ },
  "it is not that we have a short life but that we waste much of it": {
   "author": "Seneca",
   "claimed": "Seneca",
@@ -74,6 +92,18 @@
  "kind words do not cost much yet they accomplish much": {
   "author": "Lao Tzu",
   "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "life is paradise and we are all in paradise": {
+  "author": "unknown",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 4
+ },
+ "man is a creature that can get accustomed to anything": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
   "passed": false,
   "strength": 7
  },
@@ -113,11 +143,23 @@
   "passed": false,
   "strength": 3
  },
+ "nothing is more seductive for man than freedom of conscience": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
+ },
  "out of the crooked timber of humanity no straight thing was ever made": {
   "author": "Ralph Waldo Emerson",
   "claimed": "Immanuel Kant",
   "passed": false,
   "strength": 6
+ },
+ "pain and suffering are always inevitable for a large intelligence and a deep heart": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 7
  },
  "science is organized knowledge wisdom is organized life": {
   "author": "Isaac Asimov",
@@ -136,6 +178,12 @@
   "claimed": "Ralph Waldo Emerson",
   "passed": false,
   "strength": 3
+ },
+ "suffering is the sole origin of consciousness": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
  },
  "the absurd is the condition of the human being who is aware of the futility of his existence": {
   "author": "Albert Camus",
@@ -185,6 +233,12 @@
   "passed": false,
   "strength": 3
  },
+ "the mystery of human existence lies not in just staying alive but in finding something to live for": {
+  "author": "Viktor Frankl",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 7
+ },
  "the only thing that can be said of a man is that he is a man and that he is free": {
   "author": "Jean-Paul Sartre",
   "claimed": "Jean-Paul Sartre",
@@ -202,6 +256,12 @@
   "claimed": "Immanuel Kant",
   "passed": true,
   "strength": 9
+ },
+ "the past is a foreign country they do things differently there": {
+  "author": "unknown",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 7
  },
  "the past is a ghost the future a dream but the present is a gift": {
   "author": "unknown",
@@ -251,6 +311,12 @@
   "passed": false,
   "strength": 4
  },
+ "time is a great teacher but unfortunately it kills all its pupils": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
+ },
  "time is not an empirical concept that has been derived from any experience": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -262,6 +328,18 @@
   "claimed": "Immanuel Kant",
   "passed": true,
   "strength": 7
+ },
+ "to go wrong in one s own way is better than to go right in someone else s": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 8
+ },
+ "to love someone means to see them as god intended them": {
+  "author": "unknown",
+  "claimed": "Fyodor Dostoevsky",
+  "passed": false,
+  "strength": 4
  },
  "two things fill the mind with ever new and increasing admiration and awe the starry heavens above me and the moral law within me": {
   "author": "Immanuel Kant",
