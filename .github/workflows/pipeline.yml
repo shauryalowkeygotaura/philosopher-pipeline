@@ -2,8 +2,15 @@ name: Philosopher Pipeline
 
 on:
   schedule:
-    # Every 30 min = 48/day: under the IG publish cap (50/24h on older docs, 100 on newer).
-    - cron: "*/30 * * * *"
+    - cron: "30 3 * * 2"  # Tue 9am IST
+    - cron: "30 6 * * 2"  # Tue 12pm IST
+    - cron: "30 5 * * 3"  # Wed 11am IST
+    - cron: "30 13 * * 3" # Wed 7pm IST
+    - cron: "30 6 * * 4"  # Thu 12pm IST
+    - cron: "30 13 * * 4" # Thu 7pm IST
+    - cron: "30 3 * * 5"  # Fri 9am IST
+    - cron: "30 6 * * 5"  # Fri 12pm IST
+    - cron: "30 4 * * 6"  # Sat 10am IST
   workflow_dispatch:
 
 # Runs commit state.json/runs/ back; overlapping runs would race that push.
@@ -17,7 +24,6 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
-      actions: write   # self-dispatch, see "Queue next reel"
 
     steps:
       - name: Checkout repo
@@ -177,15 +183,3 @@ jobs:
             echo "SESSION_B64=$(base64 -w 0 "$SESSION_FILE")" >> $GITHUB_OUTPUT
           fi
         id: save-session
-
-      # GitHub's scheduler is best-effort: at */30 it fired 11 of ~150 slots
-      # (2026-11-09..12). So each run queues the next one itself, and the cron
-      # only restarts the chain if it ever breaks. Chains cannot multiply: the
-      # concurrency group keeps at most one pending run and cancels the rest.
-      - name: Queue next reel
-        if: always() && github.ref == 'refs/heads/master'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          sleep 1500
-          gh workflow run pipeline.yml --ref master
