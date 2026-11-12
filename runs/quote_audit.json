@@ -1,4 +1,10 @@
 {
+ "a man s work is nothing but this slow trek to rediscover through the detours of art those two or three great and simple images in whose presence his heart first opened": {
+  "author": "Albert Camus",
+  "claimed": "Albert Camus",
+  "passed": true,
+  "strength": 6
+ },
  "act only according to that maxim whereby you can at the same time will that it should become a universal law": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -131,6 +137,18 @@
   "passed": false,
   "strength": 3
  },
+ "the absurd is the condition of the human being who is aware of the futility of his existence": {
+  "author": "Albert Camus",
+  "claimed": "Albert Camus",
+  "passed": true,
+  "strength": 7
+ },
+ "the absurd man is the one who refuses to surrender to the absurd": {
+  "author": "Albert Camus",
+  "claimed": "Albert Camus",
+  "passed": true,
+  "strength": 8
+ },
  "the best revenge is to be unlike the one who has harmed you": {
   "author": "Marcus Aurelius",
   "claimed": "Seneca",
@@ -172,6 +190,12 @@
   "claimed": "Jean-Paul Sartre",
   "passed": true,
   "strength": 6
+ },
+ "the only thing that can save us from the absurd is a revolt": {
+  "author": "Albert Camus",
+  "claimed": "Albert Camus",
+  "passed": true,
+  "strength": 8
  },
  "the only thing that is good without qualification is a good will": {
   "author": "Immanuel Kant",
