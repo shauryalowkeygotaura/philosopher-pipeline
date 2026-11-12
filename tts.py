@@ -19,6 +19,7 @@ visual composer can pin its `slogan_hold` extension on top of it.
 from __future__ import annotations
 
 import asyncio
+import time
 import logging
 import subprocess
 from dataclasses import dataclass
@@ -151,7 +152,7 @@ def synthesize_quote(
     # previous hook/rest split sounded like two takes because each TTS call
     # starts with sentence-initial prosody. One call = one continuous character.
     quote_mp3 = out_dir / f"{slug}_quote.mp3"
-    quote_word_timings = asyncio.run(_render(quote, edge_voice, rate, volume, quote_mp3))
+    quote_word_timings = _render_retry(quote, edge_voice, rate, volume, quote_mp3)
     quote_dur = _probe_duration(quote_mp3)
 
     # 2. A "wisdomful" delivery breathes and lands one thought at a time, so we
@@ -218,7 +219,7 @@ def synthesize_quote(
     slogan_dur = 0.0
     if slogan and slogan.strip():
         slogan_mp3 = out_dir / f"{slug}_slogan.mp3"
-        slogan_words_raw = asyncio.run(_render(slogan, edge_voice, rate, volume, slogan_mp3))
+        slogan_words_raw = _render_retry(slogan, edge_voice, rate, volume, slogan_mp3)
         slogan_dur = _probe_duration(slogan_mp3)
         slogan_offset = cursor + slogan_gap_sec
         all_timings += [(w, s + slogan_offset, e + slogan_offset) for (w, s, e) in slogan_words_raw]
@@ -244,6 +245,34 @@ def synthesize_quote(
              len(all_timings))
     return TTSResult(audio_path=audio_path, duration_sec=total_duration,
                      word_timings=all_timings)
+
+
+# Edge TTS intermittently refuses GitHub runner IPs with "No audio was
+# received" (2 of 3 CI runs, 2026-11-11..12) while the identical text renders
+# locally. One refusal used to kill the whole reel, logged as a "success" run
+# with "No reels generated". Back off and retry; last resort is a sibling voice,
+# because a slightly different narrator beats no reel.
+_RETRY_DELAYS = (3, 8, 20, 45)
+_BACKUP_VOICE = "en-US-BrianMultilingualNeural"
+
+
+def _render_retry(text: str, voice: str, rate: str, volume: str,
+                  output_path: Path) -> List[Tuple[str, float, float]]:
+    last: Exception | None = None
+    attempts = [voice] * (len(_RETRY_DELAYS) + 1)
+    if voice != _BACKUP_VOICE:
+        attempts.append(_BACKUP_VOICE)
+    for i, v in enumerate(attempts):
+        try:
+            return asyncio.run(_render(text, v, rate, volume, output_path))
+        except Exception as e:  # noqa: BLE001 - edge-tts raises NoAudioReceived, aiohttp errors
+            last = e
+            if i < len(attempts) - 1:
+                delay = _RETRY_DELAYS[min(i, len(_RETRY_DELAYS) - 1)]
+                log.warning("TTS attempt %d/%d (%s) failed: %s; retrying in %ss",
+                            i + 1, len(attempts), v, e, delay)
+                time.sleep(delay)
+    raise RuntimeError(f"edge-tts failed after {len(attempts)} attempts: {last}") from last
 
 
 async def _render(text: str, voice: str, rate: str, volume: str,

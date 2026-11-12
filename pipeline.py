@@ -476,7 +476,10 @@ def main(upload_now=True, single=False, generate_only=False):
         log.warning("No reels generated. Exiting.")
         run_metrics.write(mode=STYLE, status="degraded",
                           summary="No reels generated (no eligible philosopher / asset fetch failed)")
-        return
+        # Non-zero so the Actions run goes RED. Exiting 0 here hid a run of
+        # TTS failures behind green checkmarks (2026-11-11..12). State commit
+        # and the self-dispatch step are `if: always()`, so nothing is lost.
+        sys.exit("No reels generated.")
 
     uploaded = 0
     if generate_only:
