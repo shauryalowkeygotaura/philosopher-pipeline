@@ -65,6 +65,18 @@
   "passed": true,
   "strength": 7
  },
+ "he who fights with monsters must be careful lest he become a monster": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Friedrich Nietzsche",
+  "passed": true,
+  "strength": 9
+ },
+ "he who fights with monsters must look out that he does not become a monster": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Friedrich Nietzsche",
+  "passed": true,
+  "strength": 7
+ },
  "i have often said that the sole cause of man s unhappiness is that he does not know how to stay quietly in his room": {
   "author": "Bertrand Russell",
   "claimed": "Blaise Pascal",
@@ -232,6 +244,12 @@
   "claimed": "Immanuel Kant",
   "passed": false,
   "strength": 3
+ },
+ "the most beautiful thing we can experience is the mysterious": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Friedrich Nietzsche",
+  "passed": true,
+  "strength": 8
  },
  "the mystery of human existence lies not in just staying alive but in finding something to live for": {
   "author": "Viktor Frankl",
