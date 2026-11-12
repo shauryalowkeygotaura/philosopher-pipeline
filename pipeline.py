@@ -268,11 +268,18 @@ def main(upload_now=True, single=False, generate_only=False):
         # Memoized: the sort key and the log line would otherwise recompute this
         # for every philosopher several times over.
         runways = {}
+        # Audit-blocked quotes are not runway: counting them kept choosing
+        # Emerson, whose generated stock is almost all misattributed.
+        audit = _quotes.load_audit()
         for name in philosophers:
             key = name.lower()
             rows = [{"quote": q} for q in PHILOSOPHER_QUOTES.get(key, [])] + pool.get(key, [])
             used = _quotes.canon_set(state.get_philosopher(name)["used_quotes"])
-            runways[name] = sum(1 for r in rows if _quotes.canon(r["quote"]) not in used)
+            runways[name] = sum(
+                1 for r in rows
+                if _quotes.canon(r["quote"]) not in used
+                and audit.get(_quotes.canon(r["quote"]), {}).get("passed", True)
+            )
 
         ranked = sorted(
             philosophers,

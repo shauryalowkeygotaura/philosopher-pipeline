@@ -905,16 +905,18 @@ def ensure_audited(
     rows: Sequence[dict[str, Any]],
     *,
     path: Path | None = None,
-) -> dict[str, dict[str, Any]]:
+) -> tuple[dict[str, dict[str, Any]], bool]:
     """Audit any of `rows` not yet in the audit file, persist, return the file.
 
     Lazy backfill: the pool and static table predate the audit, so each
     philosopher's unaudited stock is audited the first time a reel needs it.
+    Also returns `outage`: True when the audit gave no verdict at all, which is
+    the only case where an unaudited row may still be served.
     """
     audit = load_audit(path)
     todo = [r["quote"] for r in rows if canon(r["quote"]) not in audit]
     if not todo:
-        return audit
+        return audit, False
     verdicts = audit_quotes(todo)
     changed = False
     for quote, v in zip(todo, verdicts):
@@ -927,7 +929,7 @@ def ensure_audited(
                      philosopher, quote, v["author"], v["strength"])
     if changed:
         save_audit(audit, path)
-    return audit
+    return audit, not changed
 
 
 # ---------------------------------------------------------------------------
@@ -963,16 +965,24 @@ def _screen(
 ) -> list[dict[str, Any]]:
     """Drop rows the audit blocked; strongest first, unaudited last.
 
-    Never raises: an unavailable audit leaves rows unaudited and servable, so a
-    Groq outage degrades quality instead of stopping the reel.
+    Never raises. Unaudited rows survive ONLY when the audit was unavailable
+    (outage / quota), so a Groq failure degrades quality instead of stopping
+    the reel. When the audit answered but skipped a row, that row is dropped:
+    on 2026-11-12 a skipped row (William James's "greatest discovery of my
+    generation", filed under Emerson) was the only survivor and published.
     """
     apath = (pool_path.parent / QUOTE_AUDIT_PATH.name) if pool_path else None
+    outage = True
     try:
-        audit = ensure_audited(philosopher, rows, path=apath) if audit_new else load_audit(apath)
+        if audit_new:
+            audit, outage = ensure_audited(philosopher, rows, path=apath)
+        else:
+            audit = load_audit(apath)
     except Exception as e:  # noqa: BLE001 - RateLimited included
         log.warning("select_quote: audit skipped for %s (%s).", philosopher, e)
         audit = load_audit(apath)
-    kept = [r for r in rows if audit.get(canon(r["quote"]), {}).get("passed", True)]
+    kept = [r for r in rows
+            if audit.get(canon(r["quote"]), {}).get("passed", outage)]
     def rank(r: dict[str, Any]) -> int:
         v = audit.get(canon(r["quote"]))
         return -int(v["strength"]) if v else 0
@@ -1080,7 +1090,7 @@ def select_quote(
 
     # 4. floor: replay the least-recently-used quote
     chosen = _lru_replay(
-        _screen(philosopher, pool_rows, pool_path, audit_new=False) or pool_rows,
+        _screen(philosopher, pool_rows, pool_path) or pool_rows,
         used_quotes,
     )
     log.warning(

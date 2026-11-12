@@ -634,3 +634,19 @@ def test_select_quote_serves_unaudited_when_audit_unavailable(monkeypatch, tmp_p
     monkeypatch.setattr(quotes, "audit_quotes", boom)
     got = quotes.select_quote("Seneca", [], pool_path=pool, allow_generation=False)
     assert got["quote"].startswith("We suffer more often")
+
+
+def test_select_quote_drops_row_the_audit_skipped(monkeypatch, tmp_path):
+    pool = tmp_path / "quote_pool.json"
+    pool.write_text(json.dumps({"ralph waldo emerson": [
+        {"quote": "The quiet of solitude is the music of the soul.", "theme": "time", "source": "groq"},
+        {"quote": "The greatest discovery of my generation is that a human being can alter his life.", "theme": "time", "source": "groq"},
+    ]}), encoding="utf-8")
+    monkeypatch.setattr("fetcher.PHILOSOPHER_QUOTES", {}, raising=False)
+    monkeypatch.setattr(quotes, "pick_theme", lambda *a, **k: "time")
+    # Audit answers for row 1 (blocked) but skips row 2.
+    monkeypatch.setattr(quotes, "audit_quotes", lambda c: [{"author": "unknown", "strength": 3}, None])
+    got = quotes.select_quote("Ralph Waldo Emerson", [], pool_path=pool, allow_generation=False)
+    # Nothing servable fresh -> must land on the replay floor, flagged reframed.
+    assert got["reframed"] is True
+    assert not got["quote"].startswith("The greatest discovery")
