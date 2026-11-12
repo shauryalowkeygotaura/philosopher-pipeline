@@ -23,9 +23,27 @@
   "passed": true,
   "strength": 6
  },
+ "freedom is what you do with what has been done to you": {
+  "author": "Jean-Paul Sartre",
+  "claimed": "Jean-Paul Sartre",
+  "passed": true,
+  "strength": 8
+ },
  "happiness is not an ideal of reason but of imagination": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
+  "passed": true,
+  "strength": 7
+ },
+ "man is condemned to be free and he is free to be condemned": {
+  "author": "Jean-Paul Sartre",
+  "claimed": "Jean-Paul Sartre",
+  "passed": true,
+  "strength": 9
+ },
+ "man is condemned to be free and he is free to choose his own destiny": {
+  "author": "Jean-Paul Sartre",
+  "claimed": "Jean-Paul Sartre",
   "passed": true,
   "strength": 7
  },
@@ -65,6 +83,12 @@
   "passed": false,
   "strength": 3
  },
+ "the only thing that can be said of a man is that he is a man and that he is free": {
+  "author": "Jean-Paul Sartre",
+  "claimed": "Jean-Paul Sartre",
+  "passed": true,
+  "strength": 6
+ },
  "the only thing that is good without qualification is a good will": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -94,6 +118,12 @@
   "claimed": "Immanuel Kant",
   "passed": false,
   "strength": 3
+ },
+ "the world is not a place to be found but a place to be made": {
+  "author": "John Dewey",
+  "claimed": "Jean-Paul Sartre",
+  "passed": false,
+  "strength": 7
  },
  "time is not an empirical concept that has been derived from any experience": {
   "author": "Immanuel Kant",
