@@ -5,6 +5,18 @@
   "passed": true,
   "strength": 8
  },
+ "all men s miseries derive from not being able to sit in a quiet room alone": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "all of humanity s problems stem from man s inability to sit quietly in a room alone": {
+  "author": "Bertrand Russell",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 8
+ },
  "all our knowledge begins with experience but it does not arise from experience": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -35,6 +47,18 @@
   "passed": true,
   "strength": 7
  },
+ "i have often said that the sole cause of man s unhappiness is that he does not know how to stay quietly in his room": {
+  "author": "Bertrand Russell",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 8
+ },
+ "kind words do not cost much yet they accomplish much": {
+  "author": "Lao Tzu",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
  "man is condemned to be free and he is free to be condemned": {
   "author": "Jean-Paul Sartre",
   "claimed": "Jean-Paul Sartre",
@@ -46,6 +70,24 @@
   "claimed": "Jean-Paul Sartre",
   "passed": true,
   "strength": 7
+ },
+ "man s greatness lies in his power of thought": {
+  "author": "Ralph Waldo Emerson",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "men are so necessarily mad that not to be mad would amount to another form of madness": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 9
+ },
+ "men never do evil so completely and cheerfully as when they do it from religious conviction": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 8
  },
  "morality is not the doctrine of how we may make ourselves happy but how we may make ourselves worthy of happiness": {
   "author": "Immanuel Kant",
@@ -77,6 +119,18 @@
   "passed": false,
   "strength": 3
  },
+ "the eternal silence of these infinite spaces frightens me": {
+  "author": "Rainer Maria Rilke",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "the heart has its reasons which reason knows nothing of": {
+  "author": "Blaise Pascal",
+  "claimed": "Blaise Pascal",
+  "passed": true,
+  "strength": 8
+ },
  "the idea of time is a necessary condition of all our experience": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -100,6 +154,12 @@
   "claimed": "Ralph Waldo Emerson",
   "passed": false,
   "strength": 6
+ },
+ "the present is never our goal": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
  },
  "the quiet of solitude is the music of the soul": {
   "author": "unknown",
@@ -125,6 +185,18 @@
   "passed": false,
   "strength": 7
  },
+ "there is a god shaped vacuum in the heart of each man which cannot be satisfied by any created thing": {
+  "author": "Thomas Merton",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 8
+ },
+ "time heals griefs and quarrels": {
+  "author": "unknown",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 4
+ },
  "time is not an empirical concept that has been derived from any experience": {
   "author": "Immanuel Kant",
   "claimed": "Immanuel Kant",
@@ -142,5 +214,17 @@
   "claimed": "Immanuel Kant",
   "passed": true,
   "strength": 8
+ },
+ "we are generally the better persuaded by the reasons we discover ourselves than by those given to us by others": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 7
+ },
+ "we never keep to the present": {
+  "author": "Friedrich Nietzsche",
+  "claimed": "Blaise Pascal",
+  "passed": false,
+  "strength": 6
  }
 }
