@@ -17,6 +17,7 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: write
+      actions: write   # self-dispatch, see "Queue next reel"
 
     steps:
       - name: Checkout repo
@@ -123,6 +124,8 @@ jobs:
           # Unset secrets expand to empty and are ignored.
           GROQ_API_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
           GROQ_API_KEY_3: ${{ secrets.GROQ_API_KEY_3 }}
+          # Comma-separated, any length. Mirrors Doppler philosopher-pipeline/dev.
+          GROQ_API_KEYS: ${{ secrets.GROQ_API_KEYS }}
           YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/cookies.txt
           # Ship the kinetic v2 letterbox reels with the deep "elder sage"
           # narration (tts.py PITCH_SEMITONES -4.5, ~82 Hz). Remove this line
@@ -174,3 +177,15 @@ jobs:
             echo "SESSION_B64=$(base64 -w 0 "$SESSION_FILE")" >> $GITHUB_OUTPUT
           fi
         id: save-session
+
+      # GitHub's scheduler is best-effort: at */30 it fired 11 of ~150 slots
+      # (2026-11-09..12). So each run queues the next one itself, and the cron
+      # only restarts the chain if it ever breaks. Chains cannot multiply: the
+      # concurrency group keeps at most one pending run and cancels the rest.
+      - name: Queue next reel
+        if: always() && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 1500
+          gh workflow run pipeline.yml --ref master
