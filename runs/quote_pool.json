@@ -853,6 +853,18 @@
       "theme": "defiance",
       "source": "groq",
       "added": "2026-11-01"
+    },
+    {
+      "quote": "The man who is not disturbed by misfortune is the man who has learned to be indifferent to the things that are not in his power.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-11-15"
+    },
+    {
+      "quote": "The only thing that is truly good is virtue, and the only thing that is truly evil is vice; everything else is indifferent.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-11-15"
     }
   ],
   "michel de montaigne": [
@@ -933,6 +945,12 @@
       "theme": "desire",
       "source": "groq",
       "added": "2026-10-11"
+    },
+    {
+      "quote": "I have always been a man of the sea; I have always been a man of the sea.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-11-15"
     }
   ],
   "ralph waldo emerson": [
