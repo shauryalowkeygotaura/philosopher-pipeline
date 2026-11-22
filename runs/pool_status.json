@@ -1,10 +1,10 @@
 {
-  "checked_at": "2026-11-15T11:54:16Z",
-  "total_runway": 44,
+  "checked_at": "2026-11-22T12:24:36Z",
+  "total_runway": 48,
   "min_runway": 40,
-  "quotes_added": 3,
+  "quotes_added": 4,
   "promoted": [
-    "Niccolo Machiavelli"
+    "Thomas Hobbes"
   ],
   "starved": [
     "Baruch Spinoza",
@@ -13,26 +13,24 @@
     "Hannah Arendt",
     "Heraclitus",
     "Lao Tzu",
-    "Ludwig Wittgenstein",
-    "Michel de Montaigne",
     "Niccolo Machiavelli",
-    "Simone Weil",
-    "Søren Kierkegaard"
+    "Søren Kierkegaard",
+    "Thomas Hobbes"
   ],
   "tapped_out": [
     "Søren Kierkegaard",
-    "Michel de Montaigne",
     "Baruch Spinoza",
     "Lao Tzu",
-    "Simone Weil",
     "Hannah Arendt",
-    "Ludwig Wittgenstein",
     "Heraclitus",
     "Epicurus",
     "Boethius",
+    "Niccolo Machiavelli",
     "Fyodor Dostoevsky",
+    "Henry David Thoreau",
     "Franz Kafka",
     "Friedrich Nietzsche",
+    "Epictetus",
     "Albert Camus",
     "Simone de Beauvoir",
     "Arthur Schopenhauer",
@@ -49,20 +47,21 @@
   "call_budget": 60,
   "per_philosopher": {
     "Søren Kierkegaard": 0,
-    "Epictetus": 2,
-    "Michel de Montaigne": 0,
+    "Michel de Montaigne": 2,
     "Baruch Spinoza": 0,
     "Lao Tzu": 0,
-    "Henry David Thoreau": 1,
-    "Simone Weil": 0,
+    "Simone Weil": 1,
     "Hannah Arendt": 0,
-    "Ludwig Wittgenstein": 0,
+    "Ludwig Wittgenstein": 1,
     "Heraclitus": 0,
     "Epicurus": 0,
     "Boethius": 0,
+    "Niccolo Machiavelli": 0,
     "Fyodor Dostoevsky": 1,
+    "Henry David Thoreau": 1,
     "Franz Kafka": 2,
     "Friedrich Nietzsche": 2,
+    "Epictetus": 2,
     "Albert Camus": 3,
     "Simone de Beauvoir": 3,
     "Arthur Schopenhauer": 3,
@@ -73,6 +72,6 @@
     "Jean-Paul Sartre": 4,
     "Seneca": 4,
     "Immanuel Kant": 5,
-    "Niccolo Machiavelli": 0
+    "Thomas Hobbes": 0
   }
 }

@@ -903,6 +903,18 @@
       "theme": "absurdity",
       "source": "groq",
       "added": "2026-10-18"
+    },
+    {
+      "quote": "I am not afraid of death, for I am not afraid of the end of my life, but of the end of my life itself.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-11-22"
+    },
+    {
+      "quote": "I have learned that the only certainty is that we will die.",
+      "theme": "mortality",
+      "source": "groq",
+      "added": "2026-11-22"
     }
   ],
   "baruch spinoza": [
@@ -1027,6 +1039,20 @@
       "theme": "solitude",
       "source": "groq",
       "added": "2026-11-01"
+    },
+    {
+      "quote": "Suffering is a kind of love.",
+      "theme": "suffering",
+      "source": "groq",
+      "added": "2026-11-22"
+    }
+  ],
+  "ludwig wittgenstein": [
+    {
+      "quote": "The limits of my language mean the limits of my world.",
+      "theme": "self-mastery",
+      "source": "groq",
+      "added": "2026-11-22"
     }
   ]
 }

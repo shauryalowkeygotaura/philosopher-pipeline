@@ -26,3 +26,4 @@
 - Epicurus
 - Boethius
 - Niccolo Machiavelli
+- Thomas Hobbes
