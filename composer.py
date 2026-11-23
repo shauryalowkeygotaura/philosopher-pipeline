@@ -13,6 +13,7 @@ Tuned for IG Reels algorithm:
 - Quote uses serif (Playfair); attribution uses lighter sans-serif (Inter) when available
 """
 import logging
+import os
 import re
 import subprocess
 import tempfile
@@ -1588,6 +1589,47 @@ def _music_entry_offset(music_path, max_scan_sec=75.0, rel_db=8.0, min_skip_sec=
         return 0.0
 
 
+# Phrase backgrounds (drawn_scenes/, shared with vtuber-render & co). BROLL_MODE:
+#   mix   = Groq judges each body phrase: keep the painting/portrait, or a hand-drawn sketch still
+#           (icon only: the reel lays its own phrase text on top). No quota.
+#   stock = paintings/portraits only (old behaviour)
+BROLL_MODE = os.environ.get("BROLL_MODE", "mix").strip().lower()
+DRAWN_STYLE = os.environ.get("DRAWN_STYLE", "sketch").strip().lower()
+
+
+def _groq_json(messages, max_tokens):
+    import groq_pool  # noqa: PLC0415
+    resp = groq_pool.chat(groq_pool.SMART, messages=messages, max_tokens=max_tokens,
+                          response_format={"type": "json_object"}, require_content=True)
+    return resp.choices[0].message.content
+
+
+def _drawn_phrase_images(phrases, quote, philosopher, tmpd):
+    """{phrase index: png} for the phrases Groq says read better drawn. Never raises: any
+    failure keeps every painting, so this can't cost an upload."""
+    if BROLL_MODE != "mix" or not phrases:
+        return {}
+    try:
+        import drawn_scenes as ds  # noqa: PLC0415
+        lines = [f"{t}  (from: \"{quote}\" - {philosopher})" for t in phrases]
+        specs = ds.plan(lines, decide=True, chat=_groq_json,
+                        video="a dark, cinematic philosophy quote reel (Renaissance paintings, gothic type)",
+                        stock="a Renaissance painting or a portrait of the philosopher, which suits most "
+                              "phrases; only pick drawn when a simple drawn symbol makes the idea land harder")
+        style = DRAWN_STYLE if DRAWN_STYLE in ds.STYLES else "sketch"
+        out = {}
+        for i in sorted(ds.decide(specs)):
+            spec = dict(specs[i], notitle=True)
+            # the body frame shows a REEL_WIDTH x V2_BODY_BAND_HEIGHT letterbox band: draw at that shape
+            out[i] = str(ds.still(style, spec, Path(tmpd) / f"drawn_{i}.png",
+                                  size=(REEL_WIDTH, V2_BODY_BAND_HEIGHT), seed=7 + i))
+        log.info("Drawn phrase backgrounds: %s of %d", sorted(out), len(phrases))
+        return out
+    except Exception as e:  # noqa: BLE001
+        log.warning("Drawn phrase backgrounds skipped: %s", e)
+        return {}
+
+
 def compose_kinetic_v2(
     image_paths,
     quote,
@@ -1787,11 +1829,12 @@ def compose_kinetic_v2(
                 i += per
 
         if phrases:
+            drawn_imgs = _drawn_phrase_images([t for t, _, _ in phrases], quote, philosopher, tmpd)
             for bi, (text, ws, we) in enumerate(phrases):
                 base_png = tmpd / ("body_base_%d.png" % bi)
                 text_png = tmpd / ("body_text_%d.png" % bi)
                 img_idx = (bi * len(body_pool)) // max(1, len(phrases))
-                body_image = body_pool[min(img_idx, len(body_pool) - 1)]
+                body_image = drawn_imgs.get(bi) or body_pool[min(img_idx, len(body_pool) - 1)]
                 is_last = (bi == len(phrases) - 1)
                 _render_v2_body_frame(body_image, None, str(base_png), font_path)
                 _render_v2_body_frame(body_image, text, str(text_png), font_path,
