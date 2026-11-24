@@ -69,7 +69,7 @@ log = logging.getLogger(__name__)
 
 # Checked in order. Each should be from a DIFFERENT Groq account; same-account
 # keys share one quota. GROQ_API_KEYS (comma-separated) is also accepted.
-KEY_VARS = ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEY_4")
+KEY_VARS = ("GROQ_API_KEY", *(f"GROQ_API_KEY_{i}" for i in range(2, 9)))
 
 _key_index = 0
 
